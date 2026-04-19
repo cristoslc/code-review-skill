@@ -1,0 +1,224 @@
+id: code-rabbit
+created: 2026-04-19
+refreshed: 2026-04-19
+tags:
+  - code-review
+  - ai-assisted-review
+  - deterministic-systems
+  - prompt-engineering
+  - open-source-alternatives
+sources:
+  - id: cubic-blog-alternatives
+    title: "cubic blog: The 3 best CodeRabbit alternatives for AI code review in 2026"
+    url: "https://www.cubic.dev/blog/the-3-best-coderabbit-alternatives-for-ai-code-review-in-2025"
+    type: web
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "--"
+    proxy-used: null
+    notes: null
+    highlights:
+      - "cubic.dev is the best CodeRabbit Alternative for most teams"
+      - "Qodo Merge PR-Agent: open source, self-hosted"
+
+  - id: reddit-devops-alternatives
+    title: "r/devops on Reddit: any self hostable alternatives for code rabbit??"
+    url: "https://www.reddit.com/r/devops/comments/1oheri0/any_self_hostable_alternatives_for_code_rabbit/"
+    type: web
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "--"
+    proxy-used: null
+    notes: null
+    highlights:
+      - "Looking for open-source, self-hosted alternatives"
+      - "CodeRabbit has a self-hosted version (requires license)"
+
+  - id: qodo-blog-alternatives
+    title: "Best CodeRabbit Alternatives for Developers in 2025 - Qodo"
+    url: "https://www.qodo.ai/blog/coderabbit-alternatives/"
+    type: web
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "--"
+    proxy-used: null
+    notes: null
+    highlights:
+      - "Qodo Merge: full-repo analysis, deep CI integrations"
+      - "CodeRabbit: AI-powered semantic review"
+
+  - id: openalternative-co-alternatives
+    title: "2 Best Open Source CodeRabbit Alternatives in 2026"
+    url: "https://openalternative.co/alternatives/coderabbit"
+    type: web
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "--"
+    proxy-used: null
+    notes: null
+    highlights:
+      - "Kilo: best open source alternative"
+      - "Kodus: another open source alternative"
+
+  - id: getpanto-ai-alternatives
+    title: "12 Best CodeRabbit Alternatives for AI Code Reviews"
+    url: "https://www.getpanto.ai/blog/best-coderabbit-alternatives-for-ai-code-reviews"
+    type: web
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "--"
+    proxy-used: null
+    notes: null
+    highlights:
+      - "Sourcery: 30+ languages, instant feedback"
+      - "Panto: correlates code with Jira/Confluence"
+
+  - id: devto-security-deterministic
+    title: "CodeRabbit Security: How AI Detects Vulnerabilities - DEV Community"
+    url: "https://dev.to/rahulxsingh/coderabbit-security-how-ai-detects-vulnerabilities-1k8j"
+    type: web
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "--"
+    proxy-used: null
+    notes: null
+    highlights:
+      - "Semgrep: deterministic rule-based scanning (Pro plan)"
+      - "CodeRabbit: AI-powered contextual analysis"
+      - "Recommended: Run both AI and deterministic tools"
+
+  - id: devto-vs-snyk
+    title: "CodeRabbit vs Snyk Code: Code Review vs Security Scanning - DEV Community"
+    url: "https://dev.to/rahulxsingh/coderabbit-vs-snyk-code-code-review-vs-security-scanning-5g45"
+    type: web
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "--"
+    proxy-used: null
+    notes: null
+    highlights:
+      - "CodeRabbit runs 40+ deterministic linters (ESLint, Pylint, etc.)"
+      - "AI + deterministic = broader coverage"
+
+  - id: aicodereview-how-to-use
+    title: "How to Use CodeRabbit for Automated Pull Request Reviews | ACR"
+    url: "https://aicodereview.cc/blog/how-to-use-coderabbit/"
+    type: web
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "--"
+    proxy-used: null
+    notes: null
+    highlights:
+      - "CodeRabbit: catches logic errors, design issues"
+      - "Static analysis: deterministic bug detection"
+
+  - id: coderabbit-blog-2026-quality
+    title: "2025 was the year of AI speed. 2026 will be the year of AI quality."
+    url: "https://www.coderabbit.ai/blog/2025-was-the-year-of-ai-speed-2026-will-be-the-year-of-ai-quality"
+    type: web
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "--"
+    proxy-used: null
+    notes: null
+    highlights:
+      - "Shift from speed to quality in AI-assisted development"
+      - "CTOs cleaning up AI mistakes"
+
+  - id: google-cloud-blog-coderabbit
+    title: "How CodeRabbit built its AI code review agent with Google Cloud Run | Google Cloud Blog"
+    url: "https://cloud.google.com/blog/products/ai-machine-learning/how-coderabbit-built-its-ai-code-review-agent-with-google-cloud-run"
+    type: web
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "--"
+    proxy-used: null
+    notes: null
+    highlights:
+      - "Cloud Run: sandboxed, microVM execution environment"
+      - "AI-generated scripts: grep, ast-grep, etc."
+
+  - id: coderabbit-skills-readme
+    title: "CodeRabbit Skills README"
+    url: "https://github.com/coderabbitai/skills"
+    type: github-repo
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "--"
+    proxy-used: null
+    notes: "README from coderabbitai/skills repo"
+    highlights:
+      - "AI-powered code review for 35+ coding agents"
+      - "CLI integration: `coderabbit --agent`"
+
+  - id: coderabbit-skills-code-review
+    title: "CodeRabbit Code Review Skill"
+    url: "https://github.com/coderabbitai/skills/tree/main/skills/code-review"
+    type: github-repo
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "--"
+    proxy-used: null
+    notes: "Code review skill implementation"
+    highlights:
+      - "Finds bugs, security issues, quality risks"
+      - "Supports `--agent` flag for minimal output"
+
+  - id: coderabbit-docs-configuration
+    title: "CodeRabbit Documentation - Configuration"
+    url: "https://docs.coderabbit.ai/reference/configuration"
+    type: web
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "--"
+    proxy-used: null
+    notes: null
+    highlights:
+      - "Instructions: deterministic pass/fail criteria"
+      - "Custom Pre-merge Checks: up to 5 deterministic checks"
+
+  - id: coderabbit-blog-prompt-requests
+    title: "Show me the prompt: What to know about prompt requests"
+    url: "https://www.coderabbit.ai/blog/show-me-the-prompt-what-to-know-about-prompt-requests"
+    type: web
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "--"
+    proxy-used: null
+    notes: null
+    highlights:
+      - "Prompt requests: align intent before code generation"
+      - "Pull requests: deterministic artifacts in production"
+
+  - id: coderabbit-blog-context-engineering
+    title: "Context Engineering: Level up your AI Code Reviews"
+    url: "https://www.coderabbit.ai/blog/context-engineering-ai-code-reviews"
+    type: web
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "--"
+    proxy-used: null
+    notes: null
+    highlights:
+      - "Path-based instructions: deterministic glob matching"
+      - "1:1 code-to-context ratio in LLM prompts"
+
+  - id: coderabbit-git-worktree-runner
+    title: "Git Worktree Runner"
+    url: "https://github.com/coderabbitai/git-worktree-runner"
+    type: github-repo
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "--"
+    proxy-used: null
+    notes: "Bash-based Git worktree manager"
+    highlights:
+      - "Automates per-branch worktree creation"
+      - "Apache-2.0 license"
+
+history:
+  - event: created
+    date: 2026-04-19
+    commit: "--"
+    sources: 15

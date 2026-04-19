@@ -7,6 +7,9 @@ tags:
   - deterministic-systems
   - prompt-engineering
   - open-source-alternatives
+  - forgejo
+  - self-hosting
+  - licensing
 sources:
   - id: cubic-blog-alternatives
     title: "cubic blog: The 3 best CodeRabbit alternatives for AI code review in 2026"
@@ -14,9 +17,7 @@ sources:
     type: web
     fetched: 2026-04-19
     freshness-ttl: P30D
-    content-hash: "--"
-    proxy-used: null
-    notes: null
+    content-hash: "da7c38de170445e6605555682c77d71470179c8d0cbd8c261bcd529997bd92bf"
     highlights:
       - "cubic.dev is the best CodeRabbit Alternative for most teams"
       - "Qodo Merge PR-Agent: open source, self-hosted"
@@ -27,9 +28,7 @@ sources:
     type: web
     fetched: 2026-04-19
     freshness-ttl: P30D
-    content-hash: "--"
-    proxy-used: null
-    notes: null
+    content-hash: "6feaf6a02dd305c0eab54897abd31d50ad9fdc225d0a727067b22f0f7b387e88"
     highlights:
       - "Looking for open-source, self-hosted alternatives"
       - "CodeRabbit has a self-hosted version (requires license)"
@@ -40,9 +39,7 @@ sources:
     type: web
     fetched: 2026-04-19
     freshness-ttl: P30D
-    content-hash: "--"
-    proxy-used: null
-    notes: null
+    content-hash: "a116c3ed5f63860fd69be8060f3547651a95c7cb5a6608020cc38d13b6c28b6f"
     highlights:
       - "Qodo Merge: full-repo analysis, deep CI integrations"
       - "CodeRabbit: AI-powered semantic review"
@@ -53,12 +50,10 @@ sources:
     type: web
     fetched: 2026-04-19
     freshness-ttl: P30D
-    content-hash: "--"
-    proxy-used: null
-    notes: null
+    content-hash: "2278a6e32fdec65dae282b82edc869632f71683ca5729a75a96a16d128674f40"
     highlights:
       - "Kilo: best open source alternative"
-      - "Kodus: another open source alternative"
+      - "Kodus: another open source alternative (NOTE: actually open-core)"
 
   - id: getpanto-ai-alternatives
     title: "12 Best CodeRabbit Alternatives for AI Code Reviews"
@@ -66,12 +61,7 @@ sources:
     type: web
     fetched: 2026-04-19
     freshness-ttl: P30D
-    content-hash: "--"
-    proxy-used: null
-    notes: null
-    highlights:
-      - "Sourcery: 30+ languages, instant feedback"
-      - "Panto: correlates code with Jira/Confluence"
+    content-hash: "e2a12014b513ba7d9b617265003762101ff7a4010436b2b682bde3993cc74ed7"
 
   - id: devto-security-deterministic
     title: "CodeRabbit Security: How AI Detects Vulnerabilities - DEV Community"
@@ -79,13 +69,7 @@ sources:
     type: web
     fetched: 2026-04-19
     freshness-ttl: P30D
-    content-hash: "--"
-    proxy-used: null
-    notes: null
-    highlights:
-      - "Semgrep: deterministic rule-based scanning (Pro plan)"
-      - "CodeRabbit: AI-powered contextual analysis"
-      - "Recommended: Run both AI and deterministic tools"
+    content-hash: "0500a92c89b9529fb0449372d676c2ae42850ef493dc59e7fca5b56b68fc6c21"
 
   - id: devto-vs-snyk
     title: "CodeRabbit vs Snyk Code: Code Review vs Security Scanning - DEV Community"
@@ -93,12 +77,7 @@ sources:
     type: web
     fetched: 2026-04-19
     freshness-ttl: P30D
-    content-hash: "--"
-    proxy-used: null
-    notes: null
-    highlights:
-      - "CodeRabbit runs 40+ deterministic linters (ESLint, Pylint, etc.)"
-      - "AI + deterministic = broader coverage"
+    content-hash: "d83f1cadbe00134ccf7334b3dcd184435b5ba5efeb983f95e77f040bebf54d2e"
 
   - id: aicodereview-how-to-use
     title: "How to Use CodeRabbit for Automated Pull Request Reviews | ACR"
@@ -106,12 +85,7 @@ sources:
     type: web
     fetched: 2026-04-19
     freshness-ttl: P30D
-    content-hash: "--"
-    proxy-used: null
-    notes: null
-    highlights:
-      - "CodeRabbit: catches logic errors, design issues"
-      - "Static analysis: deterministic bug detection"
+    content-hash: "f8996fbda6ab0b459bd6239be14468d1644ac1004eb687d58f86f1e0b340c87c"
 
   - id: coderabbit-blog-2026-quality
     title: "2025 was the year of AI speed. 2026 will be the year of AI quality."
@@ -119,25 +93,15 @@ sources:
     type: web
     fetched: 2026-04-19
     freshness-ttl: P30D
-    content-hash: "--"
-    proxy-used: null
-    notes: null
-    highlights:
-      - "Shift from speed to quality in AI-assisted development"
-      - "CTOs cleaning up AI mistakes"
+    content-hash: "98a9da9d2f2ce23558cbe88aeae2b120c1f9cb263cc7fa54f2b98c6e38dc0859"
 
   - id: google-cloud-blog-coderabbit
-    title: "How CodeRabbit built its AI code review agent with Google Cloud Run | Google Cloud Blog"
+    title: "How CodeRabbit built its AI code review agent with Google Cloud Run"
     url: "https://cloud.google.com/blog/products/ai-machine-learning/how-coderabbit-built-its-ai-code-review-agent-with-google-cloud-run"
     type: web
     fetched: 2026-04-19
     freshness-ttl: P30D
-    content-hash: "--"
-    proxy-used: null
-    notes: null
-    highlights:
-      - "Cloud Run: sandboxed, microVM execution environment"
-      - "AI-generated scripts: grep, ast-grep, etc."
+    content-hash: "8ae17ebe8df475c3ece192d3fe4c448e45c71140ae547bc6b729310d54881743"
 
   - id: coderabbit-skills-readme
     title: "CodeRabbit Skills README"
@@ -145,12 +109,7 @@ sources:
     type: github-repo
     fetched: 2026-04-19
     freshness-ttl: P30D
-    content-hash: "--"
-    proxy-used: null
-    notes: "README from coderabbitai/skills repo"
-    highlights:
-      - "AI-powered code review for 35+ coding agents"
-      - "CLI integration: `coderabbit --agent`"
+    content-hash: "8815022c07a48429f9d47b5930f53826d68eb2bf385c1477a7eb27aff62f4a2e"
 
   - id: coderabbit-skills-code-review
     title: "CodeRabbit Code Review Skill"
@@ -158,12 +117,7 @@ sources:
     type: github-repo
     fetched: 2026-04-19
     freshness-ttl: P30D
-    content-hash: "--"
-    proxy-used: null
-    notes: "Code review skill implementation"
-    highlights:
-      - "Finds bugs, security issues, quality risks"
-      - "Supports `--agent` flag for minimal output"
+    content-hash: "ab257187747210baa4041dc569b49d3e70416426dc3c1edee474efaa77d527a8"
 
   - id: coderabbit-docs-configuration
     title: "CodeRabbit Documentation - Configuration"
@@ -171,12 +125,7 @@ sources:
     type: web
     fetched: 2026-04-19
     freshness-ttl: P30D
-    content-hash: "--"
-    proxy-used: null
-    notes: null
-    highlights:
-      - "Instructions: deterministic pass/fail criteria"
-      - "Custom Pre-merge Checks: up to 5 deterministic checks"
+    content-hash: "021cd9a354f44afcafbba5d2ed2eef1376dd1b2995d29b970749ead4b6324643"
 
   - id: coderabbit-blog-prompt-requests
     title: "Show me the prompt: What to know about prompt requests"
@@ -184,12 +133,7 @@ sources:
     type: web
     fetched: 2026-04-19
     freshness-ttl: P30D
-    content-hash: "--"
-    proxy-used: null
-    notes: null
-    highlights:
-      - "Prompt requests: align intent before code generation"
-      - "Pull requests: deterministic artifacts in production"
+    content-hash: "bad66149208bcb857b15606e75b810c5befeb3a5f8ab6e8f6a369344105e3fc8"
 
   - id: coderabbit-blog-context-engineering
     title: "Context Engineering: Level up your AI Code Reviews"
@@ -197,12 +141,7 @@ sources:
     type: web
     fetched: 2026-04-19
     freshness-ttl: P30D
-    content-hash: "--"
-    proxy-used: null
-    notes: null
-    highlights:
-      - "Path-based instructions: deterministic glob matching"
-      - "1:1 code-to-context ratio in LLM prompts"
+    content-hash: "5dc4a0da08da8125cb402736425b66ef7be52fa922c3f8bb7e9eadea8c5fa896"
 
   - id: coderabbit-git-worktree-runner
     title: "Git Worktree Runner"
@@ -210,15 +149,144 @@ sources:
     type: github-repo
     fetched: 2026-04-19
     freshness-ttl: P30D
-    content-hash: "--"
-    proxy-used: null
-    notes: "Bash-based Git worktree manager"
+    content-hash: "0dc0623859692c86933b88bb173a96921086af2f34ebbeec68382768396360ae"
+
+  - id: adamw-blog-oss-assessment
+    title: "A Half-Assed Assessment of Open Source AI Code Review Tools - AdamW"
+    url: "https://www.happyassassin.net/posts/2025/12/16/a-half-assed-assessment-of-open-source-ai-code-review-tools/"
+    type: web
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "2ec4a9da2b659ad1baa0f0c2ad154954712693e14fefb31819bdf8d9c8e07224"
     highlights:
-      - "Automates per-branch worktree creation"
-      - "Apache-2.0 license"
+      - "Independent assessment of PR-Agent, Kodus, ai-code-review, CodeRabbit OSS"
+      - "PR-Agent: most mature but archived/legacy"
+      - "Kodus: complex deploy, sloppy vibe"
+      - "CodeRabbit OSS: dead, GitHub-only"
+
+  - id: auditlm-forgejo-review
+    title: "auditlm — Self-Hostable AI Code Review for Forgejo"
+    url: "https://github.com/ellenhp/auditlm"
+    type: github-repo
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "eceadc068143ed022a931beab9d4be9acc3c90f2d7315bf14e0d317c1072c1a6"
+    highlights:
+      - "Only Forgejo-native AI code review tool"
+      - "AGPL-3.0, Rust, 31 stars, early-stage"
+      - "Uses local LLM (Ollama-compatible)"
+
+  - id: kodus-ai-review
+    title: "Kodus AI — Open Source AI Code Review"
+    url: "https://github.com/kodustech/kodus-ai"
+    type: github-repo
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "11e92bbf66eff6c79fee8c84c0a8d345b9ad0880c540031d8e8049fc180697ec"
+    highlights:
+      - "Apache 2.0 core + proprietary EE license (open-core, not truly open source)"
+      - "TypeScript, 1049 stars, complex deployment"
+      - "Forgejo support in self-hosted config"
+
+  - id: reviewdog
+    title: "reviewdog — Automated code review tool"
+    url: "https://github.com/reviewdog/reviewdog"
+    type: github-repo
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "8fc8afb61411031721cc0cc0e021db3aab32bc1190f018fa683cf60dbe6ba27a"
+    highlights:
+      - "MIT license, 9229 stars, mature project"
+      - "NOT AI-powered — routes linter output to PR comments"
+      - "GitHub, GitLab, Gerrit support"
+
+  - id: kilo-code-review
+    title: "Kilo Code Review Feature"
+    url: "https://kilo.ai/features/code-reviews"
+    type: web
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "397cbcf3dbfce68f5b7d41805ab2051f82a297345145c76b62434595a5f99b34"
+    highlights:
+      - "IDE coding agent, not dedicated review tool"
+      - "GitHub only for reviews (GitLab/Bitbucket coming soon)"
+      - "No Forgejo support"
+
+  - id: pr-agent-forgejo-issue
+    title: "PR-Agent Issue #1657 — Gitea/Forgejo Support"
+    url: "https://github.com/qodo-ai/pr-agent/issues/1657"
+    type: github-issue
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "78e34dafd4f947d3d36018c3bb84e17aff087106b9d9c95b7fe32a36b0a76c87"
+    highlights:
+      - "Gitea support added in v0.30"
+      - "Forgejo compatibility untested"
+
+  - id: qodo-pr-agent-deep-dive
+    title: "PR-Agent (Qodo/CodiumAI) Deep Dive"
+    url: "https://github.com/qodo-ai/pr-agent"
+    type: github-repo
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "06744c4dccba8907d77bd1a446e07c35240556f445f6f29624513bdbee5b2574"
+    highlights:
+      - "AGPL-3.0 license (not Apache 2.0)"
+      - "Community-maintained legacy project"
+      - "Broader forge support including Gitea"
+
+  - id: coderabbit-platforms
+    title: "CodeRabbit Supported Platforms"
+    url: "https://docs.coderabbit.ai/platforms"
+    type: web
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "61e8bdb5dc28bc168ff925d992b94b55a0c98dc486638f1065e5b8d7f347f007"
+    highlights:
+      - "GitHub, GitLab, Bitbucket, Azure DevOps only"
+      - "No Forgejo or Gitea support"
+      - "Self-hosted: Enterprise only, minimum 500 seats"
+
+  - id: gitea-forgejo-issue
+    title: "Gitea Issue #31596 — Add support for CodeRabbit etc?"
+    url: "https://github.com/go-gitea/gitea/issues/31596"
+    type: github-issue
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "83f694d11ac76f3ade970aa892017df507ecbdc3dd3192ba41c2f40e87e117cc"
+    highlights:
+      - "Closed without implementation"
+      - "CodeRabbit does not support Gitea/Forgejo"
+
+  - id: augment-code-oss-ranking
+    title: "10 Open Source AI Code Review Tools Tested on a 450K-File Monorepo"
+    url: "https://www.augmentcode.com/tools/open-source-ai-code-review-tools-worth-trying"
+    type: web
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "741cdc18efdd729db861f6cb8ca0a5b3e4ae9ad6c165c0968d1bf610ad790e36"
+    highlights:
+      - "PR-Agent Ollama integration blocked by unresolved bugs"
+      - "Tabby prioritizes completion over review"
+      - "Kodus AI listed as experiment only"
+
+  - id: nikita-filonov-ai-review
+    title: "ai-review — Multi-platform AI Code Review Tool"
+    url: "https://github.com/Nikita-Filonov/ai-review"
+    type: github-repo
+    fetched: 2026-04-19
+    freshness-ttl: P30D
+    content-hash: "3453b82c7bb7dfb37f6a1d8c42b4a5313868e27cfbe5ebbed4e52a396c88f47d"
+    highlights:
+      - "Supports Gitea explicitly"
+      - "Multiple LLM providers including Ollama"
 
 history:
   - event: created
     date: 2026-04-19
     commit: "7e5b6edd0c63ec281fe27108d4ab178668e9e208"
     sources: 15
+  - event: extended
+    date: 2026-04-19
+    commit: "--"
+    sources: 27

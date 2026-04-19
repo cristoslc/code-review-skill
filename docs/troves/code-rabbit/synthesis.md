@@ -1,109 +1,223 @@
-# Synthesis: CodeRabbit — Core Mechanisms, Alternatives, and the Forgejo Gap
+# Synthesis: Building a Small-Scale CodeRabbit Equivalent for Forgejo
 
-## What CodeRabbit Actually Is
+## The Problem
 
-CodeRabbit is a **proprietary SaaS product** for AI-powered code review. Its core mechanism pairs LLM-based semantic analysis with 40+ deterministic linters/static analyzers, running on Google Cloud Run inside sandboxed microVMs. The AI agent generates shell scripts (using `grep`, `ast-grep`, etc.) to explore codebases dynamically — these scripts execute in a two-layer sandbox with minimal IAM permissions.
+You run personal projects on a self-hosted Forgejo instance. You want AI-assisted PR review — semantic bug catching, not just linting — without paying CodeRabbit's $15K/month enterprise tax or sending your code to their SaaS. The existing options all have gaps: PR-Agent is community-maintained legacyware with untested Forgejo compat, Kodus is open-core with a brutal deployment stack, auditlm is 31 stars and single-maintainer. What would it actually take to build something suitable?
 
-The marketing emphasizes "context engineering" (a 1:1 code-to-context ratio in prompts) and "deterministic systems" (pre-merge checks, path-based glob instructions, Semgrep/OpenGrep integration). These are real features, but the framing deserves scrutiny:
+## What "Suitable" Means for Personal Projects
 
-- **"40+ linters"**: These are standard open-source linters (ESLint, Pylint, Golint) that anyone can integrate without CodeRabbit. The value-add is orchestration, not the linters themselves.
-- **"1:1 code-to-context ratio"**: This is an unsubstantiated marketing claim. There's no independent benchmark or audit confirming this ratio, and LLM prompt composition is neither published nor reproducible.
-- **"Probabilistic, not deterministic"**: CodeRabbit's own documentation and community discussions acknowledge that AI review is probabilistic. The deterministic tools exist precisely because the AI component misses things. The claim of a "hybrid model" overstates the integration — it's more accurately two separate systems running in parallel with results aggregated.
+CodeRabbit's value proposition decomposes into four layers. For personal use, you don't need all of them:
 
-## Architecture (What We Actually Know)
+| Layer | CodeRabbit's Version | Minimum Viable for Personal Forgejo |
+|---|---|---|
+| **1. Forge integration** | Webhook → billing → agent → PR comment | Webhook → agent → PR review comment |
+| **2. AI semantic review** | LLM with proprietary prompts, context engineering | LLM with your own prompts, diff + file context |
+| **3. Deterministic analysis** | 40+ linters, Semgrep/OpenGrep, pre-merge checks | reviewdog + whatever linters your project already uses |
+| **4. Quality gates** | 5 custom pass/fail checks, request-changes workflow | Optional — a failed review comment is enough for personal use |
 
-- **Cloud Run**: Webhook events → lightweight billing service → AI agent → results posted as PR comments
-- **AI-generated scripts**: The agent dynamically creates shell scripts to navigate and search code
-- **Platform integrations**: GitHub, GitLab, Bitbucket, Azure DevOps — **not** Forgejo or Gitea
-- **Self-hosting**: Enterprise-only, minimum 500 seats, starts at $15,000/month + $500-8,000/month AWS infrastructure
-- **Skills system**: A CLI and skill-pack architecture (`coderabbitai/skills` on GitHub, MIT license) that extends 35+ coding agents with CodeRabbit review capabilities
+Layer 3 and 4 are solvable today without writing code (wire reviewdog into Forgejo Actions, point it at your linters). The hard and interesting part is Layer 1 + Layer 2.
 
-## What CodeRabbit Is Not
+## Architecture: The Simplest Thing That Could Work
 
-- Not open source. Its original open-source code review action (`coderabbitai/ai-pr-reviewer`) was archived in November 2023 and is dead. The current product is entirely proprietary.
-- Not Forgejo-compatible. A Gitea feature request for CodeRabbit support (issue #31596) was closed without implementation.
-- Not cheap to self-host. The minimum $15K/month entry point makes self-hosting unrealistic for any team under 500 developers.
+```
+┌──────────┐     webhook      ┌──────────────────┐     API       ┌──────────┐
+│  Forgejo  │ ──────────────► │  Review Bot       │ ──────────► │  LLM API │
+│           │                 │  (long-running)    │ ◄────────── │          │
+│           │ ◄────────────── │                    │             └──────────┘
+│           │   POST /reviews │                    │
+└──────────┘                 └────────────────────┘
+                                      │
+                                      │ optional
+                                      ▼
+                               ┌──────────────┐
+                               │  Linters /   │
+                               │  reviewdog   │
+                               └──────────────┘
+```
 
-## Alternatives — A Feature Heatmap
+### Three components, zero orchestration platforms:
 
-The previous synthesis listed alternatives with inaccurate or vague licensing labels. Here's a corrected comparison:
+**1. Forgejo webhook receiver** — A small HTTP server that:
+- Listens for `pull_request` events (opened, synchronize)
+- Authenticates webhook payloads via HMAC secret
+- Extracts PR diff, changed file list, and base branch
 
-| Feature | CodeRabbit | PR-Agent (Qodo) | Kodus AI | Kilo | auditlm | reviewdog | ai-review (Nikita-Filonov) |
-|---|---|---|---|---|---|---|---|
-| **AI-powered review** | Yes | Yes | Yes | Partial (feature, not focus) | Yes | No | Yes |
-| **Deterministic linters** | 40+ built-in | None built-in | AST-based engine | No | No | Routes any linter | No built-in |
-| **License** | Proprietary SaaS | AGPL-3.0 (community legacy) | Apache 2.0 + proprietary EE | Apache 2.0 | AGPL-3.0 | MIT | Unknown |
-| **Core license truly open?** | No | Yes (AGPL copyleft) | No (open-core) | Yes | Yes | Yes | Unclear |
-| **Self-hostable** | Enterprise only ($15K+/mo) | Yes (Docker + BYOK) | Yes (complex stack) | No (IDE extension) | Yes (Rust binary) | Yes (Go binary) | Yes (Docker) |
-| **GitHub** | Yes | Yes | Yes | Yes (reviews) | No | Yes | Yes |
-| **GitLab** | Yes | Yes | Yes | No (coming soon) | No | Yes | Yes |
-| **Bitbucket** | Yes | Yes | Yes | No | No | No | Yes |
-| **Azure DevOps** | Yes | Yes | Yes | No | No | No | Yes |
-| **Gitea** | No | Yes (v0.30+) | No | No | No | No | Yes |
-| **Forgejo** | No | Untested (Gitea compat) | Yes (self-hosted config) | No | **Yes (native)** | No | Untested (Gitea compat) |
-| **Forgejo-native** | No | No | No | No | **Yes** | No | No |
-| **BYOK / local LLM** | No (uses own) | Yes (Ollama, LiteLLM) | Yes (any OpenAI-compat) | Yes | Yes | N/A | Yes (Ollama) |
-| **Project status** | Active, commercial | Archived/legacy (community-maintained) | Active, open-core | Active, IDE-focused | Early (31 stars) | Mature (9.2K stars) | Active |
-| **Language** | TypeScript | Python | TypeScript | TypeScript | Rust | Go | Python |
+**2. LLM review engine** — A single prompt pipeline that:
+- Fetches the PR diff via Forgejo API (`GET /repos/{owner}/{repo}/pulls/{index}.diff`)
+- Fetches relevant file contents for context (`GET /repos/{owner}/{repo}/contents/{path}`)
+- Constructs a prompt with diff + context + your custom instructions
+- Calls an OpenAI-compatible API (could be cloud, could be local Ollama)
+- Parses the LLM response into structured review comments
 
-### License Clarifications
+**3. Review poster** — Posts the review via Forgejo API:
+- `POST /repos/{owner}/{repo}/pulls/{index}/reviews` with body, event (COMMENT or REQUEST_CHANGES), and comments array
+- Each comment maps to a specific file + line from the diff
 
-- **PR-Agent**: Licensed AGPL-3.0 (not Apache 2.0 as some blog posts claim). This is a strong copyleft license — any network use requires source disclosure. Qodo has moved development focus to their commercial Qodo Merge product. PR-Agent is now described as a "community-maintained legacy project." It is not abandoned (still receiving releases), but it is no longer the primary focus.
+That's it. No PostgreSQL, no RabbitMQ, no microVM sandboxing, no billing service. For personal projects, you run one process on the same machine as Forgejo (or a $5 VPS) and point a Forgejo webhook at it.
 
-- **Kodus AI**: Marketed as "open source" but uses an **open-core model**. The core is Apache 2.0, but enterprise features (marked with `.ee` files) are under a proprietary license. Production/commercial use of EE code requires a paid license. This is misleadingly described as "open source" in their marketing.
+## The Forgejo API Surface (It Exists, It Works)
 
-- **Kilo**: Actually Apache 2.0 for the core extension. However, Kilo is fundamentally an **IDE coding agent** (a fork of Cline), not a dedicated code review tool. The PR review feature is a recent addition, not the primary product. It only supports GitHub for reviews (GitLab and Bitbucket listed as "coming soon").
+The key APIs are all present in Forgejo (carried over from Gitea):
 
-- **Sourcery**: Not open source. Free for public repos, paid for private repos ($12/seat/month). The source code is not published. The previous synthesis incorrectly labeled it as partially open source.
+| Operation | API | Status |
+|---|---|---|
+| Get PR diff | `GET /repos/{owner}/{repo}/pulls/{index}.diff` | Works |
+| Get file contents | `GET /repos/{owner}/{repo}/contents/{path}?ref={branch}` | Works |
+| Create a review | `POST /repos/{owner}/{repo}/pulls/{index}/reviews` | Works |
+| Add comments to review | `POST /repos/{owner}/{repo}/pulls/{index}/reviews/{id}/comments` | Works (since Forgejo v7.0) |
+| List PR files | `GET /repos/{owner}/{repo}/pulls/{index}/files` | Works |
+| Get PR metadata | `GET /repos/{owner}/{repo}/pulls/{index}` | Works |
 
-- **auditlm**: AGPL-3.0, Rust-based, Forgejo-native. The only tool in this comparison that was designed specifically for Forgejo. Very early stage (31 stars), single maintainer.
+The API is Swagger-documented at `https://{your-forgejo}/api/swagger`. The Gitea/Forgejo API is compatible enough that PR-Agent's `gitea-app` Docker image likely works against Forgejo unmodified — Adam Williamson's Red Hat team already proved Forgejo webhook integration works with ai-code-review.
 
-- **reviewdog**: MIT license, 9.2K stars, mature project. **Not an AI review tool** — it routes linter output to PR comments. Complementary to AI reviewers, not a replacement.
+## Alternative Architecture: Forgejo Actions Only (No Bot)
 
-## The Forgejo Problem
+If you don't want a long-running process, you can run the entire review inside Forgejo Actions:
 
-This is the most significant gap in the landscape. **No mainstream AI code review tool natively supports Forgejo.** Here's the stark picture:
+```yaml
+# .forgejo/workflows/ai-review.yml
+on:
+  pull_request:
+    types: [opened, synchronize]
 
-- **CodeRabbit**: No support. Enterprise-only self-hosting. Gitea feature request was closed.
-- **PR-Agent**: Supports Gitea (since v0.30). Forgejo API is largely compatible with Gitea, so it likely works, but **no one has tested or documented this**. Given that PR-Agent is in community-maintenance mode, Forgejo support is unlikely to be prioritized.
-- **Kodus AI**: Includes "Forgejo" in self-hosted deployment config. Likely functional but not a primary platform.
-- **auditlm**: The only **Forgejo-native** option. But at 31 stars with a single maintainer, it's not production-ready for most teams.
-- **ai-review** (Nikita-Filonov): Supports Gitea explicitly. May work with Forgejo via API compatibility. Small project, unknown maturity.
+jobs:
+  review:
+    runs-on: docker
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Run AI review
+        env:
+          FORGEJO_TOKEN: ${{ secrets.GITEA_TOKEN }}
+          LLM_API_KEY: ${{ secrets.LLM_API_KEY }}
+          PR_INDEX: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          pip install requests
+          python3 /path/to/review_script.py
+```
 
-For teams running Forgejo (including Fedora, Codeberg, and many self-hosting organizations), the practical choices are:
-1. **PR-Agent** with Gitea compat mode (best maturity, but archived and AGPL-3.0)
-2. **Kodus AI** self-hosted (complex deployment, open-core licensing)
-3. **auditlm** (Forgejo-native but early-stage)
-4. **ai-code-review** (Red Hat) with the Forgejo integration MR (Python, BYOK, but MR not yet merged)
-5. **DIY**: Wire up any LLM API to Forgejo Actions (as Adam Williamson did with ai-code-review)
+This is exactly what Adam Williamson did with ai-code-review at Codeberg. The trade-off: Actions run on every push to the PR (no debounce), you pay for runner time, and the review can't be triggered by @mention (it's push-based). But for personal projects with low PR volume, this is simpler than running a bot.
 
-## Key Findings
+## Prompt Design: Where CodeRabbit's Black Box Meets Your Open One
 
-### What CodeRabbit's Marketing Overstates
-1. **"Context engineering"**: Real feature, but the 1:1 ratio claim is unverified marketing language. The prompts themselves are proprietary and not published.
-2. **"Hybrid AI + deterministic model"**: These are parallel systems (linters run alongside AI), not an integrated hybrid. The deterministic linters are standard open-source tools anyone can run independently.
-3. **"40+ linters"**: Orchestration of existing tools, not novel analysis. reviewdog does the same thing for free.
-4. **"Self-hosted option"**: Technically true, but at $15K+/month minimum, it's enterprise-only and not relevant for most teams.
+CodeRabbit's prompts are proprietary. This is actually an advantage for a DIY tool: you can iterate on prompts in the open, test them against your own code, and tune the nitpickiness level.
 
-### What's Genuinely Distinctive
-1. **Breadth of platform support**: GitHub, GitLab, Bitbucket, Azure DevOps. No competitor matches this breadth.
-2. **Skills system**: The CLI and skill-pack architecture for 35+ coding agents is genuinely innovative and well-executed.
-3. **Pre-merge checks with deterministic criteria**: 5 custom pass/fail checks is a real quality gate feature.
-4. **Sandboxed AI script execution**: The Cloud Run microVM architecture for AI-generated scripts is a credible security model.
+Based on what CodeRabbit publicly describes (and what PR-Agent publishes), the effective prompt structure is:
 
-### The Real Competitive Landscape
-- For **GitHub/GitLab teams wanting a managed service**: CodeRabbit is the easiest on-ramp.
-- For **self-hosting teams on GitHub/GitLab**: PR-Agent (AGPL-3.0, community-maintained) or Kodus AI (open-core, complex deploy).
-- For **Forgejo teams**: auditlm is the only native option; PR-Agent + Gitea compat is the most mature; the Red Hat ai-code-review with Forgejo MR is promising but unmerged.
-- For **deterministic-only review** (no AI): reviewdog is the gold standard, MIT-licensed, 9.2K stars.
-- For **air-gapped environments**: PR-Agent with Ollama is the theoretical option, but has unresolved configuration bugs blocking reliable local model deployment.
+```python
+REVIEW_PROMPT = """You are a code reviewer for a {language} project.
 
-## Gaps and Open Questions
+## PR Description
+{pr_title}
+{pr_body}
 
-1. **No independent benchmarks exist** comparing CodeRabbit's review quality against PR-Agent, Kodus, or auditlm. All performance claims come from vendor marketing.
-2. **Forgejo support is a desert.** The Fedora migration to Forgejo makes this a growing concern for infrastructure teams.
-3. **PR-Agent's status is ambiguous.** It's not archived on GitHub, but Qodo explicitly calls it a "community-maintained legacy project." Teams relying on it should plan for decreasing maintenance velocity.
-4. **Kodus's "open source" claim is misleading.** The open-core model restricts enterprise features behind a proprietary license.
-5. **The SaaSS tax for self-hosting is extreme.** CodeRabbit's minimum $15K/month makes it irrelevant for any team that doesn't have enterprise procurement budgets.
-6. **Local LLM deployment remains immature.** The Augment Code assessment (450K-file monorepo test) found PR-Agent's Ollama integration blocked by unresolved bugs for 4+ months.
-7. **CodeRabbit's prompts are proprietary.** Unlike PR-Agent (prompts published in repo) and ai-code-review (prompts in repo), CodeRabbit's prompt engineering is a black box. Teams cannot audit, reproduce, or customize the review logic beyond the surface-level `.coderabbit.yaml` config.
+## Changed Files
+{changed_files_list}
+
+## Diff
+{diff_content}
+
+## File Context (surrounding code for changed files)
+{file_contexts}
+
+## Review Instructions
+{custom_instructions}
+
+## Output Format
+For each issue found, output a JSON object:
+- "path": file path relative to repo root
+- "line": line number in the diff (1-indexed from diff hunk start)
+- "severity": "critical" | "warning" | "info"
+- "message": plain text explanation of the issue
+- "suggestion": optional code suggestion to fix the issue
+
+Only report genuine issues. Do not comment on style preferences, 
+documentation, or trivial naming. Focus on bugs, security issues,
+logic errors, and performance problems.
+"""
+```
+
+Key design decisions:
+
+1. **How much context to include**: CodeRabbit claims 1:1 code-to-context. For personal projects, fetching the full file for each changed file (not just the diff) is usually sufficient and fits within typical context windows (128K tokens for Claude, 200K for GPT-4). You don't need CodeRabbit's "dozens of data points" for a 3-file personal PR.
+
+2. **Custom instructions**: The `.coderabbit.yaml` equivalent is a simple text file in the repo root. Path-based glob matching is 20 lines of Python.
+
+3. **Debouncing**: CodeRabbit debounces pushes (reviews after a quiet period). For a personal bot, a simple 30-60 second sleep after receiving the webhook, then checking if the PR head SHA still matches, is sufficient.
+
+4. **Deterministic layer**: Don't reinvent linter orchestration. Run reviewdog (or just your project's existing linters) as a separate Forgejo Actions workflow. The AI bot and linting workflow post independent review comments. This is exactly how CodeRabbit works (two parallel systems), except you can see and control both.
+
+## Existing Code to Start From
+
+You don't need to write this from scratch:
+
+| Starting Point | Language | Forgejo Support | Effort to Adapt |
+|---|---|---|---|
+| **auditlm** | Rust | Native (webhook bot) | Low — already works, just needs prompt tuning and maybe Ollama config |
+| **ai-code-review** (Red Hat) | Python | Forgejo MR submitted | Low — add the MR branch, point at your Forgejo |
+| **PR-Agent** (Qodo) `gitea-app` image | Python | Gitea (compatible with Forgejo API) | Medium — test against Forgejo, fix any API incompatibilities, write custom prompts |
+| **ai-review** (Nikita-Filonov) | Python | Gitea listed | Medium — similar to PR-Agent approach |
+| **Roll your own** | Any | N/A | High — but you control everything |
+
+### Recommended path for personal projects:
+
+**Fastest to working**: Use **auditlm**. It's Forgejo-native, Rust-based, uses local LLMs via OpenAI-compatible endpoints. Clone it, configure your Forgejo URL and Ollama endpoint, run it. The prompts are in the source code and can be edited. At 31 stars it's early, but for personal projects that's fine — you're not relying on it for enterprise SLAs.
+
+**Most flexible**: Use **ai-code-review** (Red Hat) with the Forgejo integration MR. Python, typed, well-tested, modular. Supports Ollama natively. The Forgejo MR exists but isn't merged — use the MR branch. This gives you the cleanest prompt code to hack on.
+
+**Most mature (if you accept Gitea compat)**: Run **PR-Agent** with the `gitea-app` Docker image against your Forgejo. The Gitea API is Forgejo's parent fork; the review API endpoints are compatible. Prompts are in `pr_agent/settings/` as configuration files. The risk is that PR-Agent is in community-maintenance mode, so bugs may linger. But it has 10K+ stars and years of production use.
+
+## What You'd Be Missing vs. CodeRabbit
+
+| Feature | Can you replicate it? | Effort |
+|---|---|---|
+| AI semantic review | Yes — same LLM APIs, your own prompts | Low |
+| Inline PR review comments | Yes — Forgejo API supports this | Low |
+| PR summary / walkthrough | Yes — one more prompt call | Low |
+| Deterministic linters | Yes — reviewdog + your existing linter config | Low |
+| Custom review instructions | Yes — `.reviewer.yaml` in repo root | Low |
+| Path-based glob instructions | Yes — 20 lines of Python | Low |
+| Context beyond diff (ticketing, wikis) | Partial — Forgejo Issues API, but no Jira/Confluence | Medium |
+| Pre-merge quality gates | Partial — Forgejo status checks + Actions, but no "request changes" auto-block without branch protection rules | Medium |
+| Debounced reviews | Yes — simple sleep + SHA check | Low |
+| @mention-triggered reviews | Yes — filter webhook events by comment body | Low |
+| Sandboxed code execution | No — and you don't need it for personal projects | N/A |
+| Multi-repo dashboard / analytics | No — would need a separate webapp | High |
+| Skills system for 35+ agents | No — CodeRabbit-specific architecture | N/A |
+| Auto-fix suggestions | Yes — LLM can generate fix patches, post as suggestions | Medium |
+| Incremental review (only new changes) | Yes — diff already contains only changes | None (free) |
+
+The things you actually can't replicate cheaply are the **dashboard/analytics** and the **skills system**. For personal projects, neither matters. The dashboard is for team leads tracking review metrics. The skills system is CodeRabbit's distribution moat, not a review feature.
+
+## Cost Model
+
+For personal projects on Forgejo:
+
+| Component | Cost |
+|---|---|
+| Forgejo | Free (self-hosted) |
+| LLM API (cloud) | ~$0.01-0.10 per review (GPT-4o-mini or Claude Haiku) |
+| LLM API (local) | Free (Ollama + open-weight model, needs ~8GB VRAM) |
+| Hosting the bot | $0 (runs on same machine as Forgejo) or $5/month VPS |
+| reviewdog + linters | Free (open source) |
+
+**Total: $0-5/month** vs. CodeRabbit's $0 (free tier, GitHub only, rate-limited) or $24/seat/month (Pro).
+
+## The Forgejo Gap Is Real (But Solvable)
+
+No mainstream AI review tool treats Forgejo as a first-class platform. The API surface exists and works — `POST /repos/{owner}/{repo}/pulls/{index}/reviews` creates reviews, webhook payloads fire on PR events, and the Gitea compatibility layer means existing Gitea integrations probably work. The gap is integration effort, not API limitations.
+
+For personal projects, the gap is small: you need one small bot process or one Forgejo Actions workflow. The hardest part isn't the Forgejo integration — it's writing good review prompts. And that's where having access to PR-Agent's published prompts (`pr_agent/settings/`) and CodeRabbit's dead OSS project's prompts (`coderabbitai/ai-pr-reviewer/src/prompts.ts`) gives you a massive head start.
+
+## Rough Implementation Timeline
+
+| Week | Milestone |
+|---|---|
+| 1 | Stand up bot: webhook receiver + Forgejo API auth + diff fetch + post review comment. No AI yet — just confirm the Forgejo integration works end-to-end with hardcoded review text. |
+| 2 | Wire in LLM: diff → prompt → LLM API → parse response → post structured review comments. Iterate on prompt quality against your own repos. |
+| 3 | Add config: `.reviewer.yaml` with custom instructions, path globs, severity thresholds. Add reviewdog as a parallel Actions workflow for deterministic checks. |
+| 4 | Polish: @mention triggering, debouncing, auto-fix suggestions, error handling. Write a Docker Compose file for the bot. |
+
+Four weeks of evenings for a working personal CodeRabbit on Forgejo. The codebase would be ~500-1000 lines of Python (or ~1000 lines of Rust if starting from auditlm). No PostgreSQL, no RabbitMQ, no $15K/month license.

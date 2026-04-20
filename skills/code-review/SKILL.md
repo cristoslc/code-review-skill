@@ -1,11 +1,11 @@
 ---
 name: code-review
-description: "Use when reviewing a PR, reviewing code, or checking a pull request"
+description: "Use when reviewing code changes, diffs, or pull requests"
 license: MIT
-compatibility: "Requires gh CLI (authenticated) and a repo with a pull request or diff to review"
+compatibility: "Requires git. Optional: jq for router, gh CLI for GitHub posting."
 metadata:
   author: cristoslc
-  argument-hint: "<pr-url-or-branch> --agents security,style,logic,docs"
+  argument-hint: "[ref1..ref2] [--agents security,style,logic,docs]"
   user-invocable: true
   allowed-tools:
     - Bash
@@ -14,191 +14,210 @@ metadata:
     - Edit
     - Grep
     - Glob
-    - MCP_DOCKER_brave_web_search
 ---
 
-Review a pull request or code diff using parallel specialized agents. $ARGUMENTS
+Review code changes using parallel specialized agents. $ARGS
 
 ## Overview
 
-Runs up to four specialized review agents in parallel (security, style, logic, documentation), then synthesizes their findings into a single recommendation: `approved`, `needs_changes`, or `blocked`.
-
-Each agent returns structured JSON findings with severity levels (critical/high/medium/low).
+Runs specialized review agents (security, style, logic, documentation) on a git diff, then synthesizes findings into a recommendation.
 
 ## When to Use
 
-- User asks to review a PR or code diff
-- User mentions "code review" or "review this"
-- Checking a pull request before merge
+- User asks to review code changes.
+- User mentions "code review" or "review this".
+- Checking changes before merge.
+- Reviewing staged or unstaged changes.
 
 ## When NOT to Use
 
-- General code exploration (not a review)
-- Linting or formatting (use language-specific tools)
-- Security auditing without a diff (use dedicated scanners)
-- Reviews of diffs larger than ~10K lines (agents will miss things)
+- General code exploration (not a review).
+- Linting or formatting (use language-specific tools).
+- Reviews of diffs larger than ~10K lines (agents will miss things).
 
-## Step 0 — Parse arguments
+## Step 0 — Detect Platform and Parse Arguments
 
-Parse `$ARGUMENTS`:
-1. If the argument is a GitHub PR URL (`https://github.com/<owner>/<repo>/pull/<number>`), extract `owner`, `repo`, and `PR number`.
-2. If the argument is a branch name or `<owner>/<repo>#<number>`, resolve it:
-   - For `<owner>/<repo>#<number>`: extract components.
-   - For a plain branch name: determine the current repo from `git remote get-url origin`, then find the open PR for that branch using `gh pr list --head <branch> --json number,headRepository,headRepositoryOwner`.
-3. If no argument is given, detect the current branch and find its associated PR:
-   ```bash
-   BRANCH=$(git --no-pager branch --show-current)
-   gh pr list --head "$BRANCH" --json number --jq '.[0].number'
-   ```
-4. If the user specified `--agents`, parse the comma-separated list. Otherwise, run all four agents.
-5. Store: `OWNER`, `REPO`, `PR_NUMBER`, `AGENTS` (array of agent names).
+### Parse Arguments
 
-If no PR can be found, ask the user to provide a PR URL or number.
+1. Extract `--agents` flag if present: `--agents security,style`.
+2. Remaining arguments are refs for diff:
+   - No args: auto-detect (staged if any, else main...HEAD).
+   - `staged`: review staged changes.
+   - `unstaged`: review unstaged changes.
+   - `REF`: review REF...HEAD.
+   - `REF1 REF2`: review REF1...REF2.
+   - `REF1...REF2`: review REF1...REF2.
 
-## Step 1 — Fetch the PR diff and metadata
+### Detect Platform
 
 ```bash
-gh pr diff "$PR_NUMBER" --repo "$OWNER/$REPO" > /tmp/codereview_diff.txt 2>/dev/null
-gh pr view "$PR_NUMBER" --repo "$OWNER/$REPO" --json title,body,headRefName,baseRefName,author,files --jq '.' > /tmp/codereview_meta.json 2>/dev/null
+REMOTE_URL=$(git remote get-url origin 2>/dev/null || echo "")
 ```
 
-Check the diff size:
+Platform detection:
+- Contains `github.com` or `github:` → `github`.
+- Contains `forgejo`, `gitea`, or `codeberg` → `forgejo`.
+- No remote or no match → `local`.
+
+Store: `PLATFORM`, `REFS` (array), `AGENTS` (array).
+
+### Detect Default Agents
+
+If `--agents` not specified, default to: `security`, `style`, `logic`, `docs`.
+
+## Step 1 — Build Router Payload
+
+Create JSON payload for router:
+
+```json
+{
+  "platform": "local",
+  "diff_method": "git-ref-diff",
+  "agents": ["security", "style", "logic"]
+}
+```
+
+## Step 2 — Invoke Router
+
+```bash
+cat payload.json | ./scripts/route.sh > /tmp/router_output.json
+```
+
+Parse router output. If error, show error and exit.
+
+## Step 3 — Acquire Diff
+
+Follow `diff_acquisition` instructions from router output.
+
+### Get staged changes
+
+```bash
+git diff --cached > /tmp/codereview_diff.txt
+```
+
+### Get unstaged changes
+
+```bash
+git diff > /tmp/codereview_diff.txt
+```
+
+### Get two refs
+
+```bash
+git diff REF1...REF2 > /tmp/codereview_diff.txt
+```
+
+### Detect trunk branch
+
+```bash
+git rev-parse --verify main 2>/dev/null || \
+git rev-parse --verify trunk 2>/dev/null || \
+git rev-parse --verify master 2>/dev/null
+```
+
+### Check diff size
+
 ```bash
 wc -l /tmp/codereview_diff.txt
 ```
 
-If the diff exceeds 3000 lines, split it into chunks of ~2500 lines and run each agent across chunks. Otherwise, use the whole diff in a single pass.
+If > 3000 lines, split into chunks:
 
-Read the diff using the **Read tool** (not Bash) to load it into context for the agent prompts.
-
-## Step 2 — Run review agents in parallel (use sub-agents)
-
-For each agent in `AGENTS`, dispatch a sub-agent that:
-1. Receives the agent-specific system prompt from `agent-prompts.md` (include the full text inline — sub-agents cannot read skill files)
-2. Receives the diff content as the user message
-3. Returns its findings as a JSON object matching the schema below
-
-Run all agents **concurrently** — do not wait for one to finish before starting the next.
-
-### Schema (each agent must return this)
-
-```json
-{
-  "status": "passed" | "warning" | "failed",
-  "findings": [
-    {
-      "severity": "critical" | "high" | "medium" | "low",
-      "title": "Brief title, one sentence, no period",
-      "description": "Specific issue: what goes wrong, under what conditions, what the consequence is. No em-dashes. Plain language.",
-      "file": "relative/path/to/file.ext",
-      "line": 42,
-      "suggested_fix": "Raw code showing the fix. No markdown fences."
-    }
-  ],
-  "summary": "Overall assessment"
-}
+```bash
+split -l 2500 /tmp/codereview_diff.txt /tmp/codereview_chunk_
 ```
 
-Status values:
-- `passed` — no issues found
-- `warning` — minor issues, should be addressed
-- `failed` — critical or high-severity issues found
+## Step 4 — Run Review Agents
 
-## Step 3 — Collect and parse results
+For each agent in `agent_prompts` (excluding synthesis):
 
-Each sub-agent's output must be valid JSON. Apply robust parsing:
-1. Parse as JSON directly.
-2. If parsing fails, strip markdown code fences and retry.
-3. If still invalid, wrap the raw output as a single `low`-severity finding with title "Raw LLM Response" so the synthesis step never breaks.
+1. Load agent prompt from router output.
+2. Load diff content via Read tool.
+3. Dispatch sub-agent with prompt + diff.
+4. Collect JSON result.
 
-Write each agent's parsed result to `/tmp/codereview_<agent>_result.json`.
+Apply JSON parsing fallback:
+- Layer 1: Parse as-is.
+- Layer 2: Strip markdown fences, retry.
+- Layer 3: Wrap raw output as single `low` finding.
 
-## Step 4 — Synthesize
+Store results in `/tmp/codereview_<agent>_result.json`.
 
-Read all `/tmp/codereview_*_result.json` files, count findings by agent and severity, then apply:
+## Step 5 — Synthesize
 
-1. **Agent status rules:**
-   - Any agent `failed` → overall at least `needs_changes`
-   - Any agent `warning` → overall at least `needs_changes`
-   - All agents `passed` with no high/critical findings → `approved`
-2. **Severity overrides:**
-   - Any `critical` finding → `blocked` regardless of agent status
-   - 2+ `high` findings across agents → `needs_changes`
-   - 1 `high` finding → `needs_changes` only if the originating agent status is `warning` or `failed`
-3. Produce a narrative summary of the most important findings.
+Load all agent results, pass to synthesis agent with `agent_prompts.synthesis` prompt.
 
-## Step 5 — Write the review report
+Synthesis agent returns:
+- `recommendation`: `approved`, `needs_changes`, or `blocked`.
+- `findings`: merged and deduplicated list.
+- `summary`: narrative summary.
 
-Write a markdown report to `~/Downloads/code-review-<owner>-<repo>-<pr-number>.md`:
+## Step 6 — Write Report
+
+Write markdown report to `~/Downloads/code-review-<timestamp>.md`:
 
 ```markdown
-# Code Review: <PR title>
+# Code Review: REF1...REF2
 
-**PR:** <owner>/<repo>#<number> — <title>
-**Branch:** <head> → <base>
-**Author:** <author>
-**Date:** <today's date>
-
----
-
-## Recommendation: <blocked|needs_changes|approved>
-
-<one-paragraph synthesis summary>
+**Refs:** REF1...REF2
+**Platform:** local
+**Date:** YYYY-MM-DD
 
 ---
 
-<for each agent that ran>
+## Recommendation: blocked
 
-### <Agent Name> — <status>
+Summary of findings...
 
-<agent's summary paragraph>
+---
 
-<for each finding, sorted by severity descending>
+### Security — failed
 
-- **[SEVERITY]** <title> (`<file>:<line>`)
-  <description>
+Security findings...
 
-  Suggested fix:
-  <suggested_fix indented>
+### Style — warning
+
+Style findings...
 
 ---
 
 ## Finding Counts
 
-| Agent | Critical | High | Medium | Low | Total | Status |
-|-------|----------|------|--------|-----|-------|--------|
-| <agent> | <N> | <N> | <N> | <N> | <N> | <status> |
+| Agent | Critical | High | Medium | Low | Total |
+|-------|----------|------|--------|-----|-------|
+| security | 1 | 2 | 0 | 1 | 4 |
 
 ---
 
-*Generated by code-review — multi-agent PR review system*
-*Source: <PR URL>*
+*Generated by code-review — multi-agent code review system*
 ```
 
-## Step 6 — Post results
+## Step 7 — Optional Posting
 
-Print the report path to the user. If the user wants to post to GitHub, use `gh api` for inline review comments or `gh pr comment` for a summary comment. **Only post to GitHub if the user explicitly asks.**
+If user explicitly asks to post to forge:
+
+Follow `platform` instructions from router output for posting via API.
 
 ## Agent Prompts
 
-Full agent system prompts are in `agent-prompts.md`. When dispatching sub-agents, copy the relevant prompt text inline — sub-agents cannot read skill files.
+Agent prompts are loaded dynamically from `agents/*.md` via the router. The router returns only the relevant prompts based on requested agents.
 
 ## Common Mistakes
 
-- **Posting to GitHub without being asked** — Step 6 requires explicit user approval
-- **Running agents sequentially** — All agents must run concurrently for speed
-- **Using Bash to read the diff** — Use the Read tool so diff content enters context
-- **Accepting non-JSON from agents** — Always apply the three-layer parsing fallback
-- **Forgetting to split large diffs** — Diffs over 3000 lines must be chunked
+- **Posting without being asked** — Only post if user explicitly asks.
+- **Running agents sequentially** — Run all agents concurrently.
+- **Reading diff via Bash** — Use Read tool so diff enters context.
+- **Accepting non-JSON** — Always apply three-layer parsing fallback.
+- **Forgot to split large diffs** — Diffs over 3000 lines must be chunked.
 
 ## Quick Reference
 
 | Step | Action |
 |------|--------|
-| 0 | Parse `$ARGUMENTS` → OWNER, REPO, PR_NUMBER, AGENTS |
-| 1 | Fetch diff + metadata via `gh` |
-| 2 | Dispatch sub-agents concurrently with prompts from `agent-prompts.md` |
-| 3 | Parse JSON results, apply fallback for invalid output |
-| 4 | Synthesize: severity overrides > agent status rules |
-| 5 | Write report to `~/Downloads/` |
-| 6 | Print path; post to GitHub only if user asks |
+| 0 | Parse args, detect platform, build router payload. |
+| 1 | Invoke router: `cat payload | ./scripts/route.sh`. |
+| 2 | Acquire diff via git commands. |
+| 3 | Run review agents concurrently. |
+| 4 | Synthesize findings. |
+| 5 | Write report to `~/Downloads/`. |
+| 6 | Optional: post to forge if asked. |

@@ -1,0 +1,7 @@
+.agents/bin/
+.agents/session.json
+.agents/session-state.json
+.swain-init
+SESSION-ROADMAP.md
+.claude/skills/swain*
+.agents/skills/swain*

@@ -5,7 +5,7 @@ license: MIT
 compatibility: "Requires git. Optional: jq for router, gh CLI for GitHub posting."
 metadata:
   author: cristoslc
-  argument-hint: "[ref1..ref2 | --full [path]] [--agents security,style,logic,docs]"
+  argument-hint: "[ref1..ref2 | --full [path]] [--agents security,style,logic,docs] [--dispatch specialist|segment]"
   user-invocable: true
   allowed-tools:
     - Bash
@@ -50,9 +50,28 @@ Review the entire codebase or a subset without requiring a diff. Use `--full` as
 - `--full src/` — review files under `src/` only.
 - `--full "**/*.py"` — review files matching a glob.
 
-**Every active specialization reviews every file.** Chunking is a batching strategy — each agent processes all chunks, not a subset. Never divide files by agent type.
+Both dispatch modes guarantee every line is reviewed under every active specialization.
 
 The skill auto-selects full-codebase mode when no refs are provided and no staged changes exist.
+
+## Dispatch Modes (full-codebase only)
+
+| Mode | Subagents | Each subagent sees | Each subagent applies | File reads |
+|------|-----------|-------------------|----------------------|------------|
+| `specialist` (default) | 4 (one per lens) | all segments | one lens | 4× (all files per subagent) |
+| `segment` | N (one per segment) | one segment | all lenses sequentially | 1× (segment files per subagent) |
+
+Set via `dispatch` field in the JSON payload:
+
+```bash
+# specialist (default)
+echo '{"platform":"local","diff_method":"full-codebase","dispatch":"specialist","agents":["security","style","logic","docs"]}' \
+  | ./scripts/generate.sh --phase init
+
+# segment
+echo '{"platform":"local","diff_method":"full-codebase","dispatch":"segment","agents":["security","style","logic","docs"]}' \
+  | ./scripts/generate.sh --phase init
+```
 
 ## Phased Orchestration
 
@@ -63,7 +82,8 @@ This skill uses **generate.sh** to produce phase-specific prompts. The orchestra
 | Phase | Purpose | Script Call |
 |-------|---------|-------------|
 | init | Detect model maker, compute competitor | `generate.sh --phase init` |
-| setup | Parse args, acquire diff | `generate.sh --phase setup` |
+| setup | Parse args, acquire diff, segment files | `generate.sh --phase setup` |
+| segment-review | Get merged prompt for one segment (segment-dispatch only) | `generate.sh --phase segment-review` |
 | agents | Dispatch review subagents | `generate.sh --phase agents` |
 | synthesize | Merge findings, produce recommendation | `generate.sh --phase synthesize` |
 | report | Write markdown report | `generate.sh --phase report` |
@@ -77,8 +97,12 @@ Start by calling generate.sh with the init phase and your payload:
 echo '{"platform":"local","diff_method":"git-ref-diff","agents":["security","style","logic","docs"]}' \
   | ./scripts/generate.sh --phase init
 
-# Full-codebase mode
-echo '{"platform":"local","diff_method":"full-codebase","agents":["security","style","logic","docs"]}' \
+# Full-codebase mode (specialist dispatch)
+echo '{"platform":"local","diff_method":"full-codebase","dispatch":"specialist","agents":["security","style","logic","docs"]}' \
+  | ./scripts/generate.sh --phase init
+
+# Full-codebase mode (segment dispatch)
+echo '{"platform":"local","diff_method":"full-codebase","dispatch":"segment","agents":["security","style","logic","docs"]}' \
   | ./scripts/generate.sh --phase init
 ```
 
@@ -99,6 +123,17 @@ echo '<same payload>' | ./scripts/generate.sh --phase report
 
 **Each phase response contains a `prompt` field with orchestration instructions.** Follow those instructions — do not reference this SKILL.md for step-by-step details during execution. The prompt IS the guidance.
 
+### Segment-Review Phase (segment-dispatch only)
+
+In segment-dispatch mode, the orchestrator dispatches one subagent per segment. Each subagent calls `generate.sh --phase segment-review` to get a merged prompt containing all specialization rubrics:
+
+```bash
+echo '{"platform":"local","diff_method":"full-codebase","dispatch":"segment","agents":["security","style","logic","docs"],"segment_id":"001"}' \
+  | ./scripts/generate.sh --phase segment-review
+```
+
+The subagent then reads its segment's files and reviews them through each lens sequentially, writing results to `/tmp/codereview_segment_<id>_result.json`.
+
 ### Model-Maker Detection
 
 generate.sh detects the host model's maker using:
@@ -116,7 +151,7 @@ It then computes a **competitor** maker and attributes the code under review to 
 
 ### Step 0 — Init
 
-Call `generate.sh --phase init` with a JSON payload containing `platform`, `diff_method`, and `agents`.
+Call `generate.sh --phase init` with a JSON payload containing `platform`, `diff_method`, `agents`, and optionally `dispatch`.
 
 The response tells you the model context and which phase comes next.
 
@@ -128,32 +163,35 @@ The response contains:
 - `prompt`: orchestration instructions for this phase
 - `diff_acquisition`: how to get the diff (or discover files if `full-codebase`)
 - `platform`: platform-specific rules
+- `meta.dispatch`: the selected dispatch mode
 - `next_phase`: `"agents"`
 
-Follow the prompt's instructions to parse arguments, detect platform, and acquire the diff or file list.
+Follow the prompt's instructions to parse arguments, detect platform, and acquire the diff or file list and segments.
 
 ### Step 2 — Agents
 
 Call `generate.sh --phase agents` with the same payload.
 
 The response contains:
-- `prompt`: dispatch instructions
-- `agent_prompts`: each agent's prompt **with experimental-model framing injected**
+- `prompt`: dispatch instructions (varies by dispatch mode)
+- `agent_prompts`: each agent's prompt **with experimental-model framing injected** (specialist-dispatch only)
 - `experimental_model`: the competitor attribution
 - `next_phase`: `"synthesize"`
 
-Dispatch all agents concurrently. Collect JSON results. Apply three-layer parsing fallback.
+For **specialist-dispatch**: dispatch one subagent per specialization, each reviews all segments.
+
+For **segment-dispatch**: for each segment, call `generate.sh --phase segment-review` (adding `segment_id` to the payload), then dispatch one subagent with the returned prompt.
 
 ### Step 3 — Synthesize
 
 Call `generate.sh --phase synthesize` with the same payload.
 
 The response contains:
-- `prompt`: synthesis instructions
+- `prompt`: synthesis instructions (varies by dispatch mode)
 - `synthesis_prompt`: synthesis agent prompt **with experimental-model framing injected**
 - `next_phase`: `"report"`
 
-Pass all agent results to the synthesis agent.
+Pass all agent or segment results to the synthesis agent.
 
 ### Step 4 — Report
 
@@ -208,15 +246,15 @@ It returns all content at once without phase sequencing or experimental-model fr
 - **Forgot to split large diffs** — Diffs over 3000 lines must be chunked.
 - **Skipping phases** — Call generate.sh for each phase in sequence; the script enforces ordering.
 - **Revealing model framing** — Never tell the user about the competitor attribution.
-- **Splitting files by agent type** — Every specialization must review every line. Chunk files for batching, not for dividing work.
+- **Splitting files by agent type** — Every specialization must review every line. Segments are for batching, not for dividing work by lens.
 
 ## Quick Reference
 
 | Step | Action |
 |------|--------|
 | 0 | Call `generate.sh --phase init` with payload. Use `diff_method: "full-codebase"` for full reviews. |
-| 1 | Call `generate.sh --phase setup`, parse args, acquire diff or file list. |
-| 2 | Call `generate.sh --phase agents`, dispatch agents concurrently. |
+| 1 | Call `generate.sh --phase setup`, parse args, acquire diff or file list + segments. |
+| 2 | Call `generate.sh --phase agents`, dispatch subagents. For segment-dispatch, use `--phase segment-review` per subagent. |
 | 3 | Call `generate.sh --phase synthesize`, merge findings. |
 | 4 | Call `generate.sh --phase report`, write report to `~/Downloads/`. |
 | 5 | Optional: post to forge if asked. |

@@ -65,7 +65,7 @@ run_test "Invalid phase returns error" \
 run_test "Init returns phases array" \
     "$PAYLOAD" \
     "init" \
-    '.phases | length == 6'
+    '.phases | length == 7'
 
 run_test "Init returns model with maker field" \
     "$PAYLOAD" \
@@ -327,6 +327,98 @@ run_test "Full-codebase report works" \
     "$FULL_CODEBASE_PAYLOAD" \
     "report" \
     '.prompt != null and .next_phase == null'
+
+# ─── Dispatch modes ────────────────────────────────────────────────────
+
+SEGMENT_PAYLOAD='{"platform": "local", "diff_method": "full-codebase", "dispatch": "segment", "agents": ["security", "style"]}'
+
+run_test "Segment setup mentions dispatch mode" \
+    "$SEGMENT_PAYLOAD" \
+    "setup" \
+    '.prompt | test("segment")'
+
+run_test "Segment setup meta contains dispatch" \
+    "$SEGMENT_PAYLOAD" \
+    "setup" \
+    '.meta.dispatch == "segment"'
+
+run_test "Segment agents prompt mentions segment-dispatch" \
+    "$SEGMENT_PAYLOAD" \
+    "agents" \
+    '.prompt | test("segment")'
+
+run_test "Segment agents meta contains dispatch" \
+    "$SEGMENT_PAYLOAD" \
+    "agents" \
+    '.meta.dispatch == "segment"'
+
+run_test "Segment synthesize prompt mentions segment" \
+    "$SEGMENT_PAYLOAD" \
+    "synthesize" \
+    '.prompt | test("segment")'
+
+run_test "Segment report meta contains dispatch" \
+    "$SEGMENT_PAYLOAD" \
+    "report" \
+    '.meta.dispatch == "segment"'
+
+run_test "Invalid dispatch returns error" \
+    '{"platform": "local", "diff_method": "full-codebase", "dispatch": "invalid", "agents": ["security"]}' \
+    "setup" \
+    '.error == "Invalid dispatch"'
+
+# ─── Segment-review phase ──────────────────────────────────────────────
+
+SEGMENT_REVIEW_PAYLOAD='{"platform": "local", "diff_method": "full-codebase", "dispatch": "segment", "agents": ["security", "style"], "segment_id": "001"}'
+
+run_test "Segment-review returns prompt" \
+    "$SEGMENT_REVIEW_PAYLOAD" \
+    "segment-review" \
+    '.prompt != null'
+
+run_test "Segment-review contains all specialist rubrics" \
+    "$SEGMENT_REVIEW_PAYLOAD" \
+    "segment-review" \
+    '.prompt | test("Lens: security") and test("Lens: style")'
+
+run_test "Segment-review contains experimental model framing" \
+    "$SEGMENT_REVIEW_PAYLOAD" \
+    "segment-review" \
+    '.prompt | test("Experimental Model Context")'
+
+run_test "Segment-review returns segment_id" \
+    "$SEGMENT_REVIEW_PAYLOAD" \
+    "segment-review" \
+    '.segment_id == "001"'
+
+run_test "Segment-review prompt mentions segment" \
+    "$SEGMENT_REVIEW_PAYLOAD" \
+    "segment-review" \
+    '.prompt | test("Segment Review: 001")'
+
+run_test "Segment-review returns experimental_model" \
+    "$SEGMENT_REVIEW_PAYLOAD" \
+    "segment-review" \
+    '.experimental_model.maker != null'
+
+# ─── Specialist dispatch (default) ──────────────────────────────────────
+
+SPECIALIST_PAYLOAD='{"platform": "local", "diff_method": "full-codebase", "dispatch": "specialist", "agents": ["security", "style"]}'
+
+run_test "Specialist setup meta contains dispatch" \
+    "$SPECIALIST_PAYLOAD" \
+    "setup" \
+    '.meta.dispatch == "specialist"'
+
+run_test "Specialist agents prompt mentions specialist" \
+    "$SPECIALIST_PAYLOAD" \
+    "agents" \
+    '.prompt | test("specialist")'
+
+run_test "Default dispatch is specialist" \
+    '{"platform": "local", "diff_method": "full-codebase", "agents": ["security"]}' \
+    "setup" \
+    '.meta.dispatch == "specialist"'
 
 # ─── Summary ────────────────────────────────────────────────────────
 

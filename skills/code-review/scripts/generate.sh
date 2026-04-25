@@ -121,6 +121,60 @@ PHASE=""
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
+        --help|-h)
+            cat <<'EOF'
+Usage: generate.sh --phase <phase> [-- <extra>]
+       echo '<payload>' | generate.sh --phase <phase>
+
+Phase-based prompt generator for code-review skill.
+Each subagent calls this script to get its prompt for the current phase.
+
+Phases:
+  init           Initialize and detect model maker
+  setup          Set up review (acquire diff/file list)
+  segment-review Return review prompt for one segment (segment-dispatch only)
+  agents         Dispatch review agents
+  synthesize     Synthesize findings from all agents
+  report         Generate final markdown report
+  route          Backward-compatible routing
+
+Payload Schema:
+  {
+    "platform": "local|github|forgejo",
+    "diff_method": "git-ref-diff|full-codebase",
+    "dispatch": "specialist|segment",
+    "agents": ["security", "style", "logic", "docs"]
+  }
+
+  - platform:       Code hosting platform (required)
+  - diff_method:    "git-ref-diff" for PRs/diffs, "full-codebase" for codebase review
+  - dispatch:       Only affects full-codebase mode.
+                    specialist: one subagent per lens, each reviews all segments (4N reads)
+                    segment: one subagent per segment, each applies all lenses (1N reads)
+  - agents:         Array of specialization lenses to apply
+
+  The skill (SKILL.md) provides full guidance on constructing a valid payload.
+  Use the code-review skill for detailed payload construction instructions.
+
+Options:
+  --phase <phase>    Specify the phase (required)
+  --help, -h         Show this help message
+
+Environment:
+  MODEL_MAKER        Override model maker detection (e.g. anthropic, openai)
+  MODEL_IDENTITY      Model identity string (e.g. claude-3.5-sonnet, gpt-4o)
+
+Dispatch modes (full-codebase only):
+  specialist   One subagent per specialization, each reviews all segments
+  segment      One subagent per segment, each reviews through all specializations
+
+Examples:
+  echo '<payload>' | ./scripts/generate.sh --phase init
+  echo '<payload>' | ./scripts/generate.sh --phase setup
+  MODEL_MAKER=anthropic ./scripts/generate.sh --phase init
+EOF
+            exit 0
+            ;;
         --phase)
             PHASE="$2"
             shift 2

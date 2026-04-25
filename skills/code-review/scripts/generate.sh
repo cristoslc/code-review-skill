@@ -143,7 +143,8 @@ Payload Schema:
     "platform": "local|github|forgejo",
     "diff_method": "git-ref-diff|full-codebase",
     "dispatch": "specialist|segment",
-    "agents": ["security", "style", "logic", "docs"]
+    "agents": ["security", "style", "logic", "docs"],
+    "output_path": "docs/ai-code-reviews/"
   }
 
   - platform:       Code hosting platform (required)
@@ -152,6 +153,7 @@ Payload Schema:
                     specialist: one subagent per lens, each reviews all segments (4N reads)
                     segment: one subagent per segment, each applies all lenses (1N reads)
   - agents:         Array of specialization lenses to apply
+  - output_path:    Directory to write the report (optional, defaults to "docs/ai-code-reviews/")
 
   The skill (SKILL.md) provides full guidance on constructing a valid payload.
   Use the code-review skill for detailed payload construction instructions.
@@ -725,11 +727,16 @@ fi
 # ─── Phase: report ───────────────────────────────────────────────────
 
 if [[ "$PHASE" == "report" ]]; then
+    OUTPUT_PATH=$(echo "$INPUT" | jq -r '.output_path // "docs/ai-code-reviews/"')
+    if [[ "$OUTPUT_PATH" != */ ]]; then
+        OUTPUT_PATH="${OUTPUT_PATH}/"
+    fi
+    
     REPORT_PROMPT="You are the report generation agent. Your job:
 
 1. Load the synthesis result from /tmp/codereview_synthesis_result.json.
 2. Load all review results. For specialist-dispatch, load /tmp/codereview_<agent>_result.json. For segment-dispatch, load /tmp/codereview_segment_<id>_result.json.
-3. Write a markdown report to ~/Downloads/code-review-<timestamp>.md using this format:
+3. Write a markdown report to ${OUTPUT_PATH}code-review-<timestamp>.md using this format:
 
 # Code Review: REF1...REF2
 

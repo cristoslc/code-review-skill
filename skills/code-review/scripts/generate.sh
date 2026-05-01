@@ -34,12 +34,20 @@ PHASES=(init setup segment-review agents synthesize report route)
 # ─── Model-maker detection ───────────────────────────────────────────
 
 detect_model_maker() {
+    local payload_maker="${1:-}"
+    local payload_identity="${2:-}"
+
+    if [[ -n "$payload_maker" ]]; then
+        echo "$payload_maker"
+        return 0
+    fi
+
     if [[ -n "${MODEL_MAKER:-}" ]]; then
         echo "$MODEL_MAKER"
         return 0
     fi
 
-    local identity="${MODEL_IDENTITY:-}"
+    local identity="${payload_identity:-${MODEL_IDENTITY:-}}"
     if [[ -n "$identity" ]]; then
         case "$identity" in
             claude*)  echo "anthropic" ;;
@@ -59,6 +67,17 @@ detect_model_maker() {
     fi
 
     echo "unknown"
+}
+
+detect_model_identity() {
+    local payload_identity="${1:-}"
+
+    if [[ -n "$payload_identity" ]]; then
+        echo "$payload_identity"
+        return 0
+    fi
+
+    echo "${MODEL_IDENTITY:-unspecified}"
 }
 
 pick_competitor() {
@@ -210,7 +229,15 @@ INPUT=$(cat)
 # ─── Phase: init ──────────────────────────────────────────────────────
 
 if [[ "$PHASE" == "init" ]]; then
-    MAKER=$(detect_model_maker)
+    PAYLOAD_MAKER=""
+    PAYLOAD_IDENTITY=""
+    if echo "$INPUT" | jq -e . >/dev/null 2>&1; then
+        PAYLOAD_MAKER=$(echo "$INPUT" | jq -r '.model_maker // empty')
+        PAYLOAD_IDENTITY=$(echo "$INPUT" | jq -r '.model_identity // empty')
+    fi
+
+    MAKER=$(detect_model_maker "$PAYLOAD_MAKER" "$PAYLOAD_IDENTITY")
+    IDENTITY=$(detect_model_identity "$PAYLOAD_IDENTITY")
     COMPETITOR=$(pick_competitor "$MAKER")
     MAKER_DISPLAY=$(maker_display_name "$MAKER")
     COMPETITOR_DISPLAY=$(maker_display_name "$COMPETITOR")
@@ -224,7 +251,7 @@ if [[ "$PHASE" == "init" ]]; then
         --argjson phases "$PHASES_JSON" \
         --arg maker "$MAKER" \
         --arg maker_display "$MAKER_DISPLAY" \
-        --arg identity "${MODEL_IDENTITY:-unspecified}" \
+        --arg identity "$IDENTITY" \
         --arg competitor "$COMPETITOR" \
         --arg competitor_display "$COMPETITOR_DISPLAY" \
         --arg instructions "$INSTRUCTIONS" \
@@ -304,7 +331,10 @@ for agent in $AGENTS; do
     fi
 done
 
-MAKER=$(detect_model_maker)
+PAYLOAD_MAKER=$(echo "$INPUT" | jq -r '.model_maker // empty')
+PAYLOAD_IDENTITY=$(echo "$INPUT" | jq -r '.model_identity // empty')
+MAKER=$(detect_model_maker "$PAYLOAD_MAKER" "$PAYLOAD_IDENTITY")
+IDENTITY=$(detect_model_identity "$PAYLOAD_IDENTITY")
 COMPETITOR=$(pick_competitor "$MAKER")
 MAKER_DISPLAY=$(maker_display_name "$MAKER")
 COMPETITOR_DISPLAY=$(maker_display_name "$COMPETITOR")
@@ -592,7 +622,7 @@ After collecting all results, call generate.sh with --phase synthesize, passing 
         --slurpfile agent_prompts "$TMPFILE" \
         --arg competitor "$COMPETITOR" \
         --arg competitor_display "$COMPETITOR_DISPLAY" \
-        --arg model_identity "${MODEL_IDENTITY:-experimental}" \
+        --arg model_identity "$IDENTITY" \
         --arg platform_name "$PLATFORM" \
         --arg diff_method_name "$DIFF_METHOD" \
         --arg dispatch "$DISPATCH" \

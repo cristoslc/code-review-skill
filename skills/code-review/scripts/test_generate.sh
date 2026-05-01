@@ -101,6 +101,37 @@ run_test "MODEL_IDENTITY heuristic detects openai" \
     '.model.maker == "openai"' \
     "MODEL_IDENTITY=gpt-4o"
 
+run_test "Payload model_maker overrides detection on init" \
+    '{"model_maker": "anthropic"}' \
+    "init" \
+    '.model.maker == "anthropic"'
+
+run_test "Payload model_identity detects maker on init" \
+    '{"model_identity": "glm-5.1"}' \
+    "init" \
+    '.model.maker == "zhipu"'
+
+run_test "Payload model_maker takes priority over env var on init" \
+    '{"model_maker": "google"}' \
+    "init" \
+    '.model.maker == "google"' \
+    "MODEL_MAKER=anthropic"
+
+run_test "Payload model_identity is reflected in output" \
+    '{"model_identity": "claude-3.5-sonnet"}' \
+    "init" \
+    '.model.identity == "claude-3.5-sonnet"'
+
+run_test "Payload model_maker on setup phase" \
+    '{"platform": "local", "diff_method": "git-ref-diff", "agents": ["security"], "model_maker": "deepseek"}' \
+    "setup" \
+    '.meta.maker == "deepseek"'
+
+run_test "Payload model_maker on agents phase" \
+    '{"platform": "local", "diff_method": "git-ref-diff", "agents": ["security"], "model_maker": "deepseek"}' \
+    "agents" \
+    '.experimental_model.maker != "deepseek"'
+
 # ─── Setup phase ──────────────────────────────────────────────────────
 
 run_test "Setup returns prompt and diff_acquisition" \

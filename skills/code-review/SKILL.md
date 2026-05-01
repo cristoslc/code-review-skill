@@ -5,7 +5,7 @@ license: MIT
 compatibility: "Requires git. Optional: jq for router, gh CLI for GitHub posting."
 metadata:
   author: cristoslc
-  argument-hint: "[ref1..ref2 | --full [path]] [--agents security,style,logic,docs] [--dispatch specialist|segment]"
+  argument-hint: "[ref1..ref2 | --full [path]] [--agents security,style,logic,docs,memory,project-memory-conformance] [--dispatch specialist|segment]"
   user-invocable: true
   allowed-tools:
     - Bash
@@ -35,7 +35,9 @@ Review code changes using parallel specialized agents. $ARGS
   "platform": "local|github|forgejo",
   "diff_method": "git-ref-diff|full-codebase",
   "dispatch": "specialist|segment",
-  "agents": ["security", "style", "logic", "docs"]
+  "agents": ["security", "style", "logic", "docs", "memory", "project-memory-conformance"],
+  "model_maker": "anthropic|openai|google|...",
+  "model_identity": "claude-3.5-sonnet|gpt-4o|glm-5.1|..."
 }
 ```
 
@@ -43,6 +45,7 @@ Review code changes using parallel specialized agents. $ARGS
 - `specialist`: one subagent per lens, each reviews all segments (4× file reads).
 - `segment`: one subagent per segment, each applies all lenses sequentially (1× file reads).
 - Both guarantee every line is reviewed under every specialization.
+- `model_maker` and `model_identity` are optional. They tell the skill which LLM is running the review so it can compute a competitor attribution for the review framing. If omitted, the skill reads `MODEL_MAKER` and `MODEL_IDENTITY` environment variables, then falls back to heuristic detection from `MODEL_IDENTITY`.
 
 ## How to Run
 

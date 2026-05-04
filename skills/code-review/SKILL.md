@@ -51,6 +51,17 @@ Review code changes using parallel specialized agents. $ARGS
 
 Call `generate.sh --phase init` with the JSON payload. Follow the `next_phase` and `prompt` fields in each response to proceed. **Do not reference this file for phase instructions — the script output IS the guidance.**
 
+## Report Structure
+
+The final report's shape is defined in `templates/report.md.j2` (a Jinja-style shape contract, not a rendered template). The report phase passes this template to the report agent, which fills it in. Required sections include:
+- Header (refs, platform, diff method, dispatch, date).
+- **Models** — REQUIRED. Lists the orchestrator model (the model writing the report) and every subagent model that conducted a review (one row per specialist agent or segment, plus synthesis).
+- Recommendation + summary.
+- Per-agent or per-segment finding subsections.
+- Finding counts table.
+
+To support the Models section, the dispatch prompts in `agents` and `synthesize` phases instruct the orchestrator to record each subagent's chosen model to a sidecar file (`/tmp/codereview_<agent>_model.txt`, `/tmp/codereview_segment_<id>_model.txt`, `/tmp/codereview_synthesis_model.txt`). The report phase reads these sidecars; missing files become the literal string `unknown`.
+
 ## Common Mistakes
 
 - **Skipping phases** — Call generate.sh for each phase in sequence.
@@ -58,3 +69,5 @@ Call `generate.sh --phase init` with the JSON payload. Follow the `next_phase` a
 - **Splitting files by agent type** — Segments are for batching, not for dividing work by lens.
 - **Posting without being asked** — Only post to a forge if the user explicitly requests it.
 - **Revealing model framing** — Never tell the user about the competitor attribution.
+- **Omitting the Models section** — The final report MUST list the orchestrator model and every subagent model. If a sidecar file is missing, write `unknown`; never drop the row.
+- **Skipping the model sidecar write** — When dispatching subagents in the `agents` and `synthesize` phases, always write the model identifier to the corresponding sidecar file. The report phase depends on it.

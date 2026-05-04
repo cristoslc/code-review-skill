@@ -541,6 +541,7 @@ The codebase has been split into segments. For each segment:
 2. To get the subagent prompt, call: echo '<same JSON payload with segment_id added>' | ./scripts/generate.sh --phase segment-review
 3. The subagent reads its assigned segment's source files and reviews them through ALL specialization lenses sequentially.
 4. Each subagent writes its JSON result to /tmp/codereview_segment_<id>_result.json.
+5. Record the model you used to dispatch each subagent to /tmp/codereview_segment_<id>_model.txt (one line, the exact model identifier you passed to the Agent tool, or \"inherited\" if no model override was provided). The report phase requires this for model attribution.
 
 Run ALL segment subagents concurrently — do not sequence them.
 
@@ -557,6 +558,7 @@ After collecting all segment results, call generate.sh with --phase synthesize, 
    - Layer 2: Strip markdown code fences, retry.
    - Layer 3: Wrap raw output as a single low-severity finding.
 6. Store each result in /tmp/codereview_<agent>_result.json.
+7. Record the model you used to dispatch each subagent to /tmp/codereview_<agent>_model.txt (one line, the exact model identifier you passed to the Agent tool, or \"inherited\" if no model override was provided). The report phase requires this for model attribution.
 
 Run ALL agents concurrently — do not sequence them.
 
@@ -591,6 +593,7 @@ Treat every line with heightened skepticism. Assume the model may have produced 
    - Layer 2: Strip markdown code fences, retry.
    - Layer 3: Wrap raw output as a single low-severity finding.
 6. Store each result in /tmp/codereview_<agent>_result.json.
+7. Record the model you used to dispatch each subagent to /tmp/codereview_<agent>_model.txt (one line, the exact model identifier you passed to the Agent tool, or \"inherited\" if no model override was provided). The report phase requires this for model attribution.
 
 Run ALL agents concurrently — do not sequence them.
 
@@ -673,14 +676,16 @@ If the overall finding pattern suggests the experimental model produced low-qual
 2. Merge findings across segments, grouping by specialization lens.
 3. Pass the merged findings to the synthesis agent using its prompt (which includes experimental-model context).
 4. The synthesis agent returns a final recommendation: approved, needs_changes, or blocked.
-5. After receiving the synthesis result, call generate.sh with --phase report, passing the same JSON payload."
+5. Record the model you used to dispatch the synthesis subagent to /tmp/codereview_synthesis_model.txt (one line, the exact model identifier you passed to the Agent tool, or \"inherited\" if no model override was provided). The report phase requires this for model attribution.
+6. After receiving the synthesis result, call generate.sh with --phase report, passing the same JSON payload."
     else
         SYNTH_PROMPT="You are the synthesis orchestration agent. Your job:
 
 1. Load all agent results from /tmp/codereview_<agent>_result.json.
 2. Pass them to the synthesis agent using its prompt (which includes experimental-model context).
 3. The synthesis agent returns a final recommendation: approved, needs_changes, or blocked.
-4. After receiving the synthesis result, call generate.sh with --phase report, passing the same JSON payload."
+4. Record the model you used to dispatch the synthesis subagent to /tmp/codereview_synthesis_model.txt (one line, the exact model identifier you passed to the Agent tool, or \"inherited\" if no model override was provided). The report phase requires this for model attribution.
+5. After receiving the synthesis result, call generate.sh with --phase report, passing the same JSON payload."
     fi
 
     SYNTH_PROMPT_ESCAPED=$(echo "$SYNTH_PROMPT" | jq -Rs '.')
@@ -761,49 +766,33 @@ if [[ "$PHASE" == "report" ]]; then
     if [[ "$OUTPUT_PATH" != */ ]]; then
         OUTPUT_PATH="${OUTPUT_PATH}/"
     fi
-    
+
+    TEMPLATE_FILE="$SKILL_DIR/templates/report.md.j2"
+    if [[ ! -f "$TEMPLATE_FILE" ]]; then
+        echo "{\"error\": \"Report template missing\", \"details\": \"Expected $TEMPLATE_FILE\"}"
+        exit 1
+    fi
+    TEMPLATE_CONTENT=$(cat "$TEMPLATE_FILE" | jq -Rs '.')
+
     REPORT_PROMPT="You are the report generation agent. Your job:
 
 1. Load the synthesis result from /tmp/codereview_synthesis_result.json.
 2. Load all review results. For specialist-dispatch, load /tmp/codereview_<agent>_result.json. For segment-dispatch, load /tmp/codereview_segment_<id>_result.json.
-3. Write a markdown report to ${OUTPUT_PATH}code-review-<timestamp>.md using this format:
+3. Load the model attribution sidecar files written during dispatch:
+   - Orchestrator model: use the model_identity field from the meta block of this payload (or \"unknown\" if empty).
+   - Subagent models (specialist-dispatch): /tmp/codereview_<agent>_model.txt for each agent.
+   - Subagent models (segment-dispatch): /tmp/codereview_segment_<id>_model.txt for each segment.
+   - Synthesis model: /tmp/codereview_synthesis_model.txt.
+   - If any sidecar file is missing, use the literal string \"unknown\" for that row.
+4. Write a markdown report to ${OUTPUT_PATH}code-review-<timestamp>.md by filling in the Jinja-style template provided in the 'report_template' field of this payload.
 
-# Code Review: REF1...REF2
+Template rules:
+- Replace every {{ placeholder }} with a concrete value.
+- Strip every {# comment #} block from the output.
+- Expand {% for %} / {% if %} blocks inline — do not emit the directive syntax.
+- Preserve the section order and headings exactly. The Models section is REQUIRED and must list the orchestrator and every subagent model.
 
-**Refs:** REF1...REF2
-**Platform:** PLATFORM
-**Dispatch:** specialist|segment
-**Date:** YYYY-MM-DD
-
----
-
-## Recommendation: blocked/needs_changes/approved
-
-Summary of findings...
-
----
-
-### Security — passed/warning/failed
-
-Security findings...
-
-### Style — passed/warning/failed
-
-Style findings...
-
----
-
-## Finding Counts
-
-| Agent | Critical | High | Medium | Low | Total |
-|-------|----------|------|--------|-----|-------|
-| security | 1 | 2 | 0 | 1 | 4 |
-
----
-
-*Generated by code-review — multi-agent code review system*
-
-4. If the user explicitly asked to post to a forge, follow the platform-specific posting instructions. Otherwise, stop here.
+5. If the user explicitly asked to post to a forge, follow the platform-specific posting instructions. Otherwise, stop here.
 
 This is the final phase. No further generate.sh calls are needed."
 
@@ -813,20 +802,24 @@ This is the final phase. No further generate.sh calls are needed."
     jq -n \
         --arg phase "report" \
         --argjson prompt "$REPORT_PROMPT_ESCAPED" \
+        --argjson report_template "$TEMPLATE_CONTENT" \
         --argjson platform_content "$PLATFORM_CONTENT" \
         --arg platform_name "$PLATFORM" \
         --arg diff_method_name "$DIFF_METHOD" \
         --arg dispatch "$DISPATCH" \
+        --arg model_identity "$IDENTITY" \
         --argjson agents_list "$AGENT_ARRAY" \
         '{
             phase: $phase,
             prompt: $prompt,
+            report_template: $report_template,
             platform: $platform_content,
             meta: {
                 platform: $platform_name,
                 diff_method: $diff_method_name,
                 dispatch: $dispatch,
-                agents: $agents_list
+                agents: $agents_list,
+                model_identity: $model_identity
             },
             next_phase: null
         }'

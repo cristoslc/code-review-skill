@@ -37,7 +37,7 @@ Apply these rules to merge findings:
 Rank findings by severity:
 1. `critical` — Must be fixed before merge
 2. `high` — Should be fixed before merge
-3. `medium` — Address if time permits
+3. `medium` — Should be fixed — actionable and meaningful
 4. `low` — Nice to have
 
 ## Recommendation Rules
@@ -45,8 +45,8 @@ Rank findings by severity:
 Determine the overall recommendation:
 
 - **`blocked`** — Any `critical` finding exists
-- **`needs_changes`** — Any `high` finding exists, OR 2+ `medium` findings, OR any agent status is `failed`
-- **`approved`** — No `critical` or `high` findings, all agents `passed` or `warning`
+- **`needs_changes`** — Any `high` finding exists, OR any `medium` finding exists, OR any agent status is `failed`
+- **`approved`** — No `critical`, `high`, or `medium` findings (only `low`/`info`). All agents `passed` or `warning`
 
 ## Output Format
 

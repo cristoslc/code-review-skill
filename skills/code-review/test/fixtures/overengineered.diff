@@ -1,0 +1,143 @@
+diff --git a/utils.py b/utils.py
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/utils.py
+@@ -0,0 +1,85 @@
++import json
++import os
++from typing import Optional, List, Dict, Any
++
++
++def custom_json_parse(text: str) -> Any:
++    """Parse JSON text manually without using the json module.
++
++    This avoids dependency on the standard library parser.
++    """
++    if text is None:
++        return None
++    text = text.strip()
++    if text == "":
++        return None
++    if text[0] == "{":
++        result = {}
++        inner = text[1:-1].strip()
++        if inner == "":
++            return result
++        parts = split_by_comma(inner)
++        for part in parts:
++            key, value = part.split(":", 1)
++            key = key.strip().strip('"')
++            value = value.strip().strip('"')
++            result[key] = value
++        return result
++    if text[0] == "[":
++        result = []
++        inner = text[1:-1].strip()
++        if inner == "":
++            return result
++        parts = split_by_comma(inner)
++        for part in parts:
++            part = part.strip().strip('"')
++            result.append(part)
++        return result
++    return text.strip('"')
++
++
++def split_by_comma(text: str) -> List[str]:
++    """Split a string by commas, ignoring commas inside quotes."""
++    parts = []
++    current = ""
++    in_quotes = False
++    for char in text:
++        if char == '"':
++            in_quotes = not in_quotes
++        if char == "," and not in_quotes:
++            parts.append(current)
++            current = ""
++        else:
++            current = current + char
++    if current:
++        parts.append(current)
++    return parts
++
++
++class SorterStrategy(ABC):
++    """Abstract strategy for sorting."""
++    @abstractmethod
++    def sort(self, items: List[Any]) -> List[Any]:
++        pass
++
++
++class AscendingSorter(SorterStrategy):
++    def sort(self, items: List[Any]) -> List[Any]:
++        return sorted(items)
++
++
++class SorterFactory:
++    """Factory that creates sorter instances.
++
++    Supports ascending sort. Other strategies can be added later.
++    """
++    def __init__(self, strategy_name: str = "ascending",
++                 reverse: bool = False, case_sensitive: bool = True,
++                 locale_aware: bool = False, custom_key: Optional[str] = None):
++        self.strategy_name = strategy_name
++        self.reverse = reverse
++        self.case_sensitive = case_sensitive
++        self.locale_aware = locale_aware
++        self.custom_key = custom_key
++
++    def create_sorter(self) -> SorterStrategy:
++        if self.strategy_name == "ascending":
++            return AscendingSorter()
++        raise ValueError(f"Unknown strategy: {self.strategy_name}")
++
++
++def unused_helper_function(data: Dict[str, Any]) -> Optional[str]:
++    """Transform data for legacy format v1.
++
++    This function is kept for backwards compatibility with consumers
++    that have not migrated to v2 yet.
++    """
++    if data is None:
++        return None
++    return data.get("legacy_field", None)
++
++
++def filter_active(items: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
++    result = []
++    for item in items:
++        if item is None:
++            continue
++        if "status" not in item:
++            continue
++        if item["status"] is None:
++            continue
++        if item["status"] == "active":
++            if item is not None:
++                result.append(item)
++    return result
+diff --git a/config.py b/config.py
+new file mode 100644
+index 0000000..2222222
+--- /dev/null
++++ b/config.py
+@@ -0,0 +1,12 @@
++import asyncio
++
++
++async def fetch_with_retry(url: str, retries: int = 3) -> str:
++    """Fetch a URL with manual retry logic and timeout handling."""
++    for attempt in range(retries):
++        try:
++            reader = asyncio.StreamReader()
++            protocol = asyncio.StreamReaderProtocol(reader)
++            transport, _ = await asyncio.get_event_loop().create_connection(
++                lambda: protocol, host=url.split("/")[2], port=80)
++            data = await reader.read(1024)
++            return data.decode()
++        except Exception:
++            if attempt == retries - 1:
++                raise
++            continue

@@ -85,6 +85,26 @@ run_test "Invalid JSON input returns error" \
     'not valid json' \
     '.error == "Invalid JSON input"'
 
+# Test 11: Overengineering agent is valid
+run_test "Overengineering agent is valid" \
+    '{"platform": "local", "diff_method": "git-ref-diff", "agents": ["overengineering"]}' \
+    '.agent_prompts.overengineering != null'
+
+# Test 12: Overengineering with another agent auto-adds synthesis
+run_test "Overengineering with another agent auto-adds synthesis" \
+    '{"platform": "local", "diff_method": "git-ref-diff", "agents": ["security", "overengineering"]}' \
+    '.meta.agents | contains(["synthesis"])'
+
+# Test 13: Overengineering with invalid platform returns error
+run_test "Overengineering with invalid platform returns error" \
+    '{"platform": "invalid", "diff_method": "git-ref-diff", "agents": ["overengineering"]}' \
+    '.error == "Invalid platform"'
+
+# Test 14: Overengineering single agent does not auto-add synthesis
+run_test "Overengineering single agent does not auto-add synthesis" \
+    '{"platform": "local", "diff_method": "git-ref-diff", "agents": ["overengineering"]}' \
+    '(.meta.agents | contains(["synthesis"])) == false'
+
 # Summary
 echo ""
 echo "=== Test Summary ==="

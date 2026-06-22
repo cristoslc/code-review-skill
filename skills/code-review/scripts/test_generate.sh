@@ -47,6 +47,8 @@ run_test() {
 
 PAYLOAD='{"platform": "local", "diff_method": "git-ref-diff", "agents": ["security", "style"]}'
 SINGLE_PAYLOAD='{"platform": "local", "diff_method": "git-ref-diff", "agents": ["security"]}'
+OVERENGINEERING_PAYLOAD='{"platform": "local", "diff_method": "git-ref-diff", "agents": ["overengineering"]}'
+OVERENGINEERING_PAIR_PAYLOAD='{"platform": "local", "diff_method": "git-ref-diff", "agents": ["security", "overengineering"]}'
 
 # ─── Phase validation ─────────────────────────────────────────────────
 
@@ -185,6 +187,128 @@ run_test "Agent prompts contain competitor name" \
     "$PAYLOAD" \
     "agents" \
     '.agent_prompts.security | test("experimental language model")'
+
+# ─── Overengineering agent ──────────────────────────────────────────────
+
+run_test "Overengineering agent prompt is returned" \
+    "$OVERENGINEERING_PAYLOAD" \
+    "agents" \
+    '.agent_prompts.overengineering != null'
+
+run_test "Overengineering agent prompt contains overengineering rubric" \
+    "$OVERENGINEERING_PAYLOAD" \
+    "agents" \
+    '.agent_prompts.overengineering | test("stdlib")'
+
+run_test "Overengineering agent prompt contains all five categories" \
+    "$OVERENGINEERING_PAYLOAD" \
+    "agents" \
+    '.agent_prompts.overengineering | test("stdlib") and test("native") and test("yagni") and test("delete") and test("shrink")'
+
+run_test "Overengineering agent prompt has experimental model framing" \
+    "$OVERENGINEERING_PAYLOAD" \
+    "agents" \
+    '.agent_prompts.overengineering | test("Experimental Model Context")'
+
+run_test "Overengineering agent prompt has correct output schema" \
+    "$OVERENGINEERING_PAYLOAD" \
+    "agents" \
+    '.agent_prompts.overengineering | test("status") and test("findings") and test("severity") and test("suggested_fix")'
+
+run_test "Overengineering with another agent auto-adds synthesis" \
+    "$OVERENGINEERING_PAIR_PAYLOAD" \
+    "agents" \
+    '(.meta.agents | contains(["synthesis"]))'
+
+run_test "Overengineering single agent does not auto-add synthesis" \
+    "$OVERENGINEERING_PAYLOAD" \
+    "agents" \
+    '(.meta.agents | contains(["synthesis"])) == false'
+
+run_test "Overengineering with invalid platform returns error" \
+    '{"platform": "invalid", "diff_method": "git-ref-diff", "agents": ["overengineering"]}' \
+    "agents" \
+    '.error == "Invalid platform"'
+
+run_test "Overengineering with invalid diff_method returns error" \
+    '{"platform": "local", "diff_method": "invalid", "agents": ["overengineering"]}' \
+    "agents" \
+    '.error == "Invalid diff_method"'
+
+run_test "Overengineering with missing platform returns error" \
+    '{"diff_method": "git-ref-diff", "agents": ["overengineering"]}' \
+    "agents" \
+    '.error == "Missing required field"'
+
+run_test "Overengineering with invalid dispatch returns error" \
+    '{"platform": "local", "diff_method": "full-codebase", "dispatch": "invalid", "agents": ["overengineering"]}' \
+    "setup" \
+    '.error == "Invalid dispatch"'
+
+# ─── Overengineering + full-codebase mode ──────────────────────────────
+
+OVERENG_FULL_CODEBASE_PAYLOAD='{"platform": "local", "diff_method": "full-codebase", "agents": ["overengineering", "logic"]}'
+
+run_test "Overengineering full-codebase agents contain full-review framing" \
+    "$OVERENG_FULL_CODEBASE_PAYLOAD" \
+    "agents" \
+    '.agent_prompts.overengineering | test("Full Codebase Review Mode")'
+
+run_test "Overengineering full-codebase agents have experimental model framing" \
+    "$OVERENG_FULL_CODEBASE_PAYLOAD" \
+    "agents" \
+    '.agent_prompts.overengineering | test("Experimental Model Context")'
+
+run_test "Overengineering full-codebase synthesize works" \
+    "$OVERENG_FULL_CODEBASE_PAYLOAD" \
+    "synthesize" \
+    '.synthesis_prompt != null and .next_phase == "report"'
+
+run_test "Overengineering full-codebase report works" \
+    "$OVERENG_FULL_CODEBASE_PAYLOAD" \
+    "report" \
+    '.prompt != null and .next_phase == null'
+
+# ─── Overengineering + specialist dispatch ──────────────────────────────
+
+OVERENG_SPECIALIST_PAYLOAD='{"platform": "local", "diff_method": "full-codebase", "dispatch": "specialist", "agents": ["overengineering", "logic"]}'
+
+run_test "Overengineering specialist agents prompt mentions specialist" \
+    "$OVERENG_SPECIALIST_PAYLOAD" \
+    "agents" \
+    '.prompt | test("specialist")'
+
+run_test "Overengineering specialist setup meta contains dispatch" \
+    "$OVERENG_SPECIALIST_PAYLOAD" \
+    "setup" \
+    '.meta.dispatch == "specialist"'
+
+# ─── Overengineering phase sequencing ───────────────────────────────────
+
+run_test "Overengineering init next_phase is setup" \
+    "$OVERENGINEERING_PAYLOAD" \
+    "init" \
+    '.next_phase == "setup"'
+
+run_test "Overengineering setup next_phase is agents" \
+    "$OVERENGINEERING_PAYLOAD" \
+    "setup" \
+    '.next_phase == "agents"'
+
+run_test "Overengineering agents next_phase is synthesize" \
+    "$OVERENGINEERING_PAIR_PAYLOAD" \
+    "agents" \
+    '.next_phase == "synthesize"'
+
+run_test "Overengineering pair synthesize next_phase is report" \
+    "$OVERENGINEERING_PAIR_PAYLOAD" \
+    "synthesize" \
+    '.next_phase == "report"'
+
+run_test "Overengineering pair report next_phase is null" \
+    "$OVERENGINEERING_PAIR_PAYLOAD" \
+    "report" \
+    '.next_phase == null'
 
 # ─── Synthesize phase ────────────────────────────────────────────────
 
@@ -401,6 +525,7 @@ run_test "Invalid dispatch returns error" \
 # ─── Segment-review phase ──────────────────────────────────────────────
 
 SEGMENT_REVIEW_PAYLOAD='{"platform": "local", "diff_method": "full-codebase", "dispatch": "segment", "agents": ["security", "style"], "segment_id": "001"}'
+SEGMENT_REVIEW_OVERENG_PAYLOAD='{"platform": "local", "diff_method": "full-codebase", "dispatch": "segment", "agents": ["security", "overengineering"], "segment_id": "002"}'
 
 run_test "Segment-review returns prompt" \
     "$SEGMENT_REVIEW_PAYLOAD" \
@@ -431,6 +556,11 @@ run_test "Segment-review returns experimental_model" \
     "$SEGMENT_REVIEW_PAYLOAD" \
     "segment-review" \
     '.experimental_model.maker != null'
+
+run_test "Segment-review with overengineering contains overengineering lens" \
+    "$SEGMENT_REVIEW_OVERENG_PAYLOAD" \
+    "segment-review" \
+    '.prompt | test("Lens: overengineering")'
 
 # ─── Specialist dispatch (default) ──────────────────────────────────────
 

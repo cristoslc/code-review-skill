@@ -5,7 +5,7 @@ license: MIT
 compatibility: "Requires git. Optional: jq for router, gh CLI for GitHub posting."
 metadata:
   author: cristoslc
-  argument-hint: "[ref1..ref2 | --full [path]] [--agents security,style,logic,docs,memory,project-memory-conformance] [--dispatch specialist|segment]"
+  argument-hint: "[ref1..ref2 | --full [path]] [--agents security,style,logic,docs,memory,project-memory-conformance,overengineering] [--dispatch specialist|segment]"
   user-invocable: true
   allowed-tools:
     - Bash
@@ -35,7 +35,7 @@ Review code changes using parallel specialized agents. $ARGS
   "platform": "local|github|forgejo",
   "diff_method": "git-ref-diff|full-codebase",
   "dispatch": "specialist|segment",
-  "agents": ["security", "style", "logic", "docs", "memory", "project-memory-conformance"],
+  "agents": ["security", "style", "logic", "docs", "memory", "project-memory-conformance", "overengineering"],
   "model_maker": "anthropic|openai|google|...",
   "model_identity": "claude-3.5-sonnet|gpt-4o|glm-5.1|..."
 }

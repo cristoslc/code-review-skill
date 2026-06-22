@@ -47,6 +47,8 @@ run_test() {
 
 PAYLOAD='{"platform": "local", "diff_method": "git-ref-diff", "agents": ["security", "style"]}'
 SINGLE_PAYLOAD='{"platform": "local", "diff_method": "git-ref-diff", "agents": ["security"]}'
+OVERENGINEERING_PAYLOAD='{"platform": "local", "diff_method": "git-ref-diff", "agents": ["overengineering"]}'
+OVERENGINEERING_PAIR_PAYLOAD='{"platform": "local", "diff_method": "git-ref-diff", "agents": ["security", "overengineering"]}'
 
 # ─── Phase validation ─────────────────────────────────────────────────
 
@@ -185,6 +187,43 @@ run_test "Agent prompts contain competitor name" \
     "$PAYLOAD" \
     "agents" \
     '.agent_prompts.security | test("experimental language model")'
+
+# ─── Overengineering agent ──────────────────────────────────────────────
+
+run_test "Overengineering agent prompt is returned" \
+    "$OVERENGINEERING_PAYLOAD" \
+    "agents" \
+    '.agent_prompts.overengineering != null'
+
+run_test "Overengineering agent prompt contains overengineering rubric" \
+    "$OVERENGINEERING_PAYLOAD" \
+    "agents" \
+    '.agent_prompts.overengineering | test("stdlib")'
+
+run_test "Overengineering agent prompt contains all five categories" \
+    "$OVERENGINEERING_PAYLOAD" \
+    "agents" \
+    '.agent_prompts.overengineering | test("stdlib") and test("native") and test("yagni") and test("delete") and test("shrink")'
+
+run_test "Overengineering agent prompt has experimental model framing" \
+    "$OVERENGINEERING_PAYLOAD" \
+    "agents" \
+    '.agent_prompts.overengineering | test("Experimental Model Context")'
+
+run_test "Overengineering agent prompt has correct output schema" \
+    "$OVERENGINEERING_PAYLOAD" \
+    "agents" \
+    '.agent_prompts.overengineering | test("status") and test("findings") and test("severity") and test("suggested_fix")'
+
+run_test "Overengineering with another agent auto-adds synthesis" \
+    "$OVERENGINEERING_PAIR_PAYLOAD" \
+    "agents" \
+    '(.meta.agents | contains(["synthesis"]))'
+
+run_test "Overengineering single agent does not auto-add synthesis" \
+    "$OVERENGINEERING_PAYLOAD" \
+    "agents" \
+    '(.meta.agents | contains(["synthesis"])) == false'
 
 # ─── Synthesize phase ────────────────────────────────────────────────
 
@@ -401,6 +440,7 @@ run_test "Invalid dispatch returns error" \
 # ─── Segment-review phase ──────────────────────────────────────────────
 
 SEGMENT_REVIEW_PAYLOAD='{"platform": "local", "diff_method": "full-codebase", "dispatch": "segment", "agents": ["security", "style"], "segment_id": "001"}'
+SEGMENT_REVIEW_OVERENG_PAYLOAD='{"platform": "local", "diff_method": "full-codebase", "dispatch": "segment", "agents": ["security", "overengineering"], "segment_id": "002"}'
 
 run_test "Segment-review returns prompt" \
     "$SEGMENT_REVIEW_PAYLOAD" \
@@ -431,6 +471,11 @@ run_test "Segment-review returns experimental_model" \
     "$SEGMENT_REVIEW_PAYLOAD" \
     "segment-review" \
     '.experimental_model.maker != null'
+
+run_test "Segment-review with overengineering contains overengineering lens" \
+    "$SEGMENT_REVIEW_OVERENG_PAYLOAD" \
+    "segment-review" \
+    '.prompt | test("Lens: overengineering")'
 
 # ─── Specialist dispatch (default) ──────────────────────────────────────
 
